@@ -150,12 +150,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
 
         List<Map<String, Object>> errors = ex.getBindingResult()
-                .getFieldErrors()
+                .getAllErrors()
                 .stream()
-                .map(fe -> {
+                .map(oe -> {
+                    // erros de classe (ex.: @FcmPayloadSize) não têm campo; usa o nome do objeto
                     Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("field", fe.getField());
-                    entry.put("message", fe.getDefaultMessage());
+                    entry.put("field", oe instanceof org.springframework.validation.FieldError fe
+                            ? fe.getField() : oe.getObjectName());
+                    entry.put("message", oe.getDefaultMessage());
                     return entry;
                 })
                 .toList();

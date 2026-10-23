@@ -3,6 +3,7 @@ package com.solaria.notify.dto.request;
 import java.util.Map;
 import java.util.UUID;
 
+import com.solaria.notify.dto.validation.FcmPayloadSize;
 import com.solaria.notify.dto.validation.NotReservedDataKey;
 import com.solaria.notify.model.enums.NotificationType;
 
@@ -15,6 +16,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
+@FcmPayloadSize
 public class InternalNotificationRequestDTO {
 
     @NotNull(message = "authId é obrigatório")

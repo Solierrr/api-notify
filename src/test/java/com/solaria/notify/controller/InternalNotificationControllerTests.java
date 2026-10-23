@@ -144,6 +144,33 @@ class InternalNotificationControllerTests {
     }
 
     @Test
+    void oversizedPayloadIs400AndNothingIsStored() throws Exception {
+        StringBuilder data = new StringBuilder("{");
+        for (int i = 0; i < 20; i++) {
+            data.append(i > 0 ? "," : "").append("\"k").append(i).append("\":\"").append("v".repeat(512)).append("\"");
+        }
+        data.append("}");
+        mockMvc.perform(post(URL).header("X-Service-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithData(data.toString())))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.errors[0].message").value("payload excede o limite de envio do FCM"));
+        verify(notificationService, never()).dispatch(any());
+    }
+
+    @Test
+    void largestTypicalPayloadIs201() throws Exception {
+        when(notificationService.dispatch(any()))
+                .thenReturn(new NotificationDispatchResponseDTO(UUID.randomUUID(), 0, 0, 0));
+        String json = "{\"authId\":\"" + UUID.randomUUID() + "\",\"type\":\"NEW_MESSAGE\",\"title\":\""
+                + "t".repeat(120) + "\",\"body\":\"" + "b".repeat(500)
+                + "\",\"data\":{\"chatId\":\"1\",\"messageId\":\"2\",\"senderId\":\"3\"}}";
+        mockMvc.perform(post(URL).header("X-Service-Key", KEY).contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void validDataMapReturns201() throws Exception {
         when(notificationService.dispatch(any()))
                 .thenReturn(new NotificationDispatchResponseDTO(UUID.randomUUID(), 0, 0, 0));
