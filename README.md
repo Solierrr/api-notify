@@ -67,8 +67,9 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 | `SERVICE_KEY_API_CORE` | Chave de serviço do `api-core`. Vazia, o serviço nunca autentica. |
 | `FCM_ENABLED` | `true` liga o envio real via Firebase Cloud Messaging; `false` (padrão) usa o `PushSender` que só registra o envio em log. Com `true`, `FCM_CREDENTIALS_BASE64` é obrigatória, senão a aplicação não sobe. |
 | `FCM_CREDENTIALS_BASE64` | Conta de serviço do projeto `solaria-authenticator` em base64, numa pasta própria do Infisical (`/fcm`). Gere com `base64 -w0 <arquivo>.json` direto para o `.env` local, sem colar o conteúdo em chat, log ou repositório. |
-| `FIREBASE_PROJECT_ID` | ID do projeto Firebase (`solaria-authenticator`). |
+| `FIREBASE_PROJECT_ID` | Opcional. ID do projeto Firebase (`solaria-authenticator`, o mesmo do `api-auth`); em branco, o ID vem do `project_id` da conta de serviço. |
 | `FCM_DRY_RUN` | `true` envia ao FCM em modo de validação: credencial e payload são checados, mas nenhum push é entregue. Padrão `false`. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `SERVICE_VERSION`, `DEPLOYMENT_ENVIRONMENT`, `OTEL_TRACES_SAMPLING_PROBABILITY` | Observabilidade (OpenTelemetry). |
 
 ### Envio via FCM
 
@@ -78,7 +79,6 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 - **Falha parcial**: se um lote inteiro falha (rede, credencial), os tokens dele contam como `failed` e os lotes seguintes continuam. O envio só é tratado como falha total (`failed` igual ao número de aparelhos, nenhum removido) quando todos os lotes falham. Em qualquer caso a notificação continua gravada.
 - **Limite de payload**: a soma dos bytes UTF-8 de todas as chaves e valores (fixos mais `data`) não pode passar de 3800 bytes, margem sob os 4096 do FCM. Acima disso a rota responde `400` antes de gravar. O limite não aparece no schema do `openapi.yaml`.
 - O token FCM, a credencial e as chaves de serviço nunca são logados.
-| `OTEL_EXPORTER_OTLP_ENDPOINT`, `SERVICE_VERSION`, `DEPLOYMENT_ENVIRONMENT`, `OTEL_TRACES_SAMPLING_PROBABILITY` | Observabilidade (OpenTelemetry). |
 
 ## Aprofunde-se no Projeto!
 
