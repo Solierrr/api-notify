@@ -3,10 +3,12 @@ package com.solaria.notify.dto.request;
 import java.util.Map;
 import java.util.UUID;
 
+import com.solaria.notify.dto.validation.NotReservedDataKey;
 import com.solaria.notify.model.enums.NotificationType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,5 +32,7 @@ public class InternalNotificationRequestDTO {
     private String body;
 
     @Size(max = 20, message = "data deve ter no máximo 20 entradas")
-    private Map<String, String> data;
+    private Map<
+            @Pattern(regexp = "^[A-Za-z][A-Za-z0-9_]{0,63}$", message = "chave de data inválida") @NotReservedDataKey String,
+            @NotNull(message = "valor de data não pode ser nulo") @Size(max = 512, message = "valor de data deve ter no máximo 512 caracteres") String> data;
 }

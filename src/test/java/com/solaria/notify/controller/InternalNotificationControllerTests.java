@@ -34,13 +34,14 @@ import com.solaria.notify.service.NotificationService;
 @Import({ SecurityConfig.class, ServiceKeyAuthFilter.class, ProblemDetailAuthenticationEntryPoint.class,
         ProblemDetailAccessDeniedHandler.class, ProblemDetailFactory.class, GlobalExceptionHandler.class })
 @TestPropertySource(properties = {
-        "app.service-keys.api-core=k1",
+        "app.service-keys.api-core=unit-test-service-key-0123456789abcdef",
         "app.cors.allowed-origins=http://localhost:3000",
         "app.jwt.jwk-set-uri=http://localhost:8081/.well-known/jwks.json",
         "app.jwt.issuer=solaria-auth" })
 class InternalNotificationControllerTests {
 
     private static final String URL = "/internal/notifications";
+    private static final String KEY = "unit-test-service-key-0123456789abcdef";
 
     @Autowired
     MockMvc mockMvc;
@@ -61,7 +62,7 @@ class InternalNotificationControllerTests {
         UUID id = UUID.randomUUID();
         when(notificationService.dispatch(any())).thenReturn(new NotificationDispatchResponseDTO(id, 1, 0, 0));
 
-        mockMvc.perform(post(URL).header("X-Service-Key", "k1").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post(URL).header("X-Service-Key", "unit-test-service-key-0123456789abcdef").contentType(MediaType.APPLICATION_JSON)
                 .content(body("NEW_MESSAGE", "Oi")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(id.toString()))
@@ -80,7 +81,7 @@ class InternalNotificationControllerTests {
 
     @Test
     void dispatchWithUnknownTypeIs400() throws Exception {
-        mockMvc.perform(post(URL).header("X-Service-Key", "k1").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post(URL).header("X-Service-Key", "unit-test-service-key-0123456789abcdef").contentType(MediaType.APPLICATION_JSON)
                 .content(body("FOO", "Oi")))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
@@ -89,10 +90,65 @@ class InternalNotificationControllerTests {
 
     @Test
     void dispatchWithBlankTitleIs400() throws Exception {
-        mockMvc.perform(post(URL).header("X-Service-Key", "k1").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(post(URL).header("X-Service-Key", "unit-test-service-key-0123456789abcdef").contentType(MediaType.APPLICATION_JSON)
                 .content(body("NEW_MESSAGE", " ")))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).dispatch(any());
+    }
+
+    private static String bodyWithData(String dataJson) {
+        return "{\"authId\":\"" + UUID.randomUUID()
+                + "\",\"type\":\"NEW_MESSAGE\",\"title\":\"Oi\",\"body\":\"corpo\",\"data\":" + dataJson + "}";
+    }
+
+    private void expectDataRejected(String dataJson) throws Exception {
+        mockMvc.perform(post(URL).header("X-Service-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithData(dataJson)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verify(notificationService, never()).dispatch(any());
+    }
+
+    @Test
+    void reservedDataKeyIs400() throws Exception {
+        expectDataRejected("{\"from\":\"x\"}");
+        expectDataRejected("{\"title\":\"x\"}");
+        expectDataRejected("{\"notificationId\":\"x\"}");
+        expectDataRejected("{\"collapse_key\":\"x\"}");
+    }
+
+    @Test
+    void googleAndGcmPrefixedDataKeyIs400() throws Exception {
+        expectDataRejected("{\"google_x\":\"x\"}");
+        expectDataRejected("{\"Google_x\":\"x\"}");
+        expectDataRejected("{\"gcm_x\":\"x\"}");
+    }
+
+    @Test
+    void malformedDataKeyIs400() throws Exception {
+        expectDataRejected("{\"google.x\":\"x\"}");
+        expectDataRejected("{\"1abc\":\"x\"}");
+        expectDataRejected("{\"" + "a".repeat(65) + "\":\"x\"}");
+    }
+
+    @Test
+    void tooLongDataValueIs400() throws Exception {
+        expectDataRejected("{\"chatId\":\"" + "v".repeat(513) + "\"}");
+    }
+
+    @Test
+    void nullDataValueIs400() throws Exception {
+        expectDataRejected("{\"chatId\":null}");
+    }
+
+    @Test
+    void validDataMapReturns201() throws Exception {
+        when(notificationService.dispatch(any()))
+                .thenReturn(new NotificationDispatchResponseDTO(UUID.randomUUID(), 0, 0, 0));
+        mockMvc.perform(post(URL).header("X-Service-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .content(bodyWithData("{\"chatId\":\"" + "v".repeat(512) + "\",\"a_1\":\"2\"}")))
+                .andExpect(status().isCreated());
     }
 }
