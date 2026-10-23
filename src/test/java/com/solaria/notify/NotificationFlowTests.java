@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +36,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import com.jayway.jsonpath.JsonPath;
 import com.solaria.notify.model.Device;
 import com.solaria.notify.model.Notification;
+import com.solaria.notify.model.enums.Platform;
+import com.solaria.notify.service.DeviceService;
 
 // Fluxo ponta a ponta contra MongoDB real (localhost:27017), em banco isolado
 @SpringBootTest
@@ -43,10 +46,10 @@ import com.solaria.notify.model.Notification;
         "spring.mongodb.uri=mongodb://localhost:27017/solaria_notify_flow_test?uuidRepresentation=standard",
         "spring.mongodb.database=solaria_notify_flow_test",
         "spring.data.mongodb.auto-index-creation=true",
-        "app.service-keys.api-core=flow-test-core-key" })
+        "app.service-keys.api-core=flow-test-core-key-0123456789abcdef012" })
 class NotificationFlowTests {
 
-    private static final String SERVICE_KEY = "flow-test-core-key";
+    private static final String SERVICE_KEY = "flow-test-core-key-0123456789abcdef012";
     private static final String FID = "fid-teste";
 
     @Autowired
@@ -54,6 +57,9 @@ class NotificationFlowTests {
 
     @Autowired
     MongoTemplate mongoTemplate;
+
+    @Autowired
+    DeviceService deviceService;
 
     @Autowired
     MongoMappingContext mappingContext;
@@ -158,8 +164,27 @@ class NotificationFlowTests {
                 .content("{\"fcmToken\":\"token-b\",\"platform\":\"ANDROID\"}"))
                 .andExpect(status().isOk());
         assertThat(mongoTemplate.find(new Query(Criteria.where("authId").is(userA)), Device.class)).isEmpty();
+        Device owned = mongoTemplate.findById(FID, Device.class);
+        assertThat(owned).isNotNull();
+        assertThat(owned.getAuthId()).isEqualTo(userB);
+        assertThat(owned.getFcmToken()).isEqualTo("token-b");
         mockMvc.perform(delete("/notify/devices/" + FID).with(user(userA)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void removeStaleOnlyDeletesWhenTokenStillMatches() {
+        UUID owner = UUID.randomUUID();
+        Instant now = Instant.parse("2026-01-10T12:00:00Z");
+        Device registered = new Device(FID, owner, "token-novo", Platform.ANDROID, "1.0", now, now);
+        mongoTemplate.save(registered);
+        Device stale = new Device(FID, owner, "token-antigo", Platform.ANDROID, "1.0", now, now);
+
+        assertThat(deviceService.removeStale(List.of(stale))).isZero();
+        assertThat(mongoTemplate.findById(FID, Device.class)).isNotNull();
+
+        assertThat(deviceService.removeStale(List.of(registered))).isEqualTo(1);
+        assertThat(mongoTemplate.findById(FID, Device.class)).isNull();
     }
 
     @Test
