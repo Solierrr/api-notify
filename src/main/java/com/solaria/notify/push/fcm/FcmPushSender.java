@@ -49,9 +49,13 @@ public class FcmPushSender implements PushSender {
         Map<String, String> payload = payload(message);
         int sent = 0;
         int failed = 0;
+        int failedBatches = 0;
+        int batchCount = 0;
         List<String> invalid = new ArrayList<>();
 
+        PushDeliveryException lastFailure = null;
         for (int from = 0; from < fcmTokens.size(); from += MAX_TOKENS_PER_BATCH) {
+            int batchIndex = batchCount++;
             List<String> batch = fcmTokens.subList(from, Math.min(from + MAX_TOKENS_PER_BATCH, fcmTokens.size()));
             MulticastMessage multicast = MulticastMessage.builder()
                     .addAllTokens(batch)
@@ -63,8 +67,13 @@ public class FcmPushSender implements PushSender {
                 response = firebaseMessaging.sendEachForMulticast(multicast, properties.isDryRun());
             } catch (FirebaseMessagingException e) {
                 // Sem causa encadeada: só os códigos, para a mensagem nunca carregar token
-                throw new PushDeliveryException("Falha ao enviar lote FCM: errorCode=" + e.getErrorCode()
-                        + " messagingErrorCode=" + e.getMessagingErrorCode());
+                String detail = "errorCode=" + e.getErrorCode() + " messagingErrorCode=" + e.getMessagingErrorCode();
+                log.warn("Lote FCM falhou: notificationId={} batch={} {}", message.notificationId(), batchIndex,
+                        detail);
+                lastFailure = new PushDeliveryException("Falha ao enviar lote FCM: " + detail);
+                failedBatches++;
+                failed += batch.size();
+                continue;
             }
             List<SendResponse> responses = response.getResponses();
             for (int i = 0; i < responses.size(); i++) {
@@ -75,10 +84,15 @@ public class FcmPushSender implements PushSender {
                 }
                 failed++;
                 FirebaseMessagingException error = r.getException();
-                if (error != null && INVALID_TOKEN_CODES.contains(error.getMessagingErrorCode())) {
+                if (error != null && error.getMessagingErrorCode() != null
+                        && INVALID_TOKEN_CODES.contains(error.getMessagingErrorCode())) {
                     invalid.add(batch.get(i));
                 }
             }
+        }
+
+        if (batchCount > 0 && failedBatches == batchCount) {
+            throw lastFailure;
         }
 
         log.info("Push FCM: notificationId={} type={} sent={} failed={} invalid={} dryRun={}",

@@ -201,4 +201,69 @@ class FcmPushSenderTests {
         assertThat((Map<String, String>) field(captor.getValue(), "data"))
                 .containsOnlyKeys("notificationId", "type", "title", "body");
     }
+
+    @Test
+    void nullMessagingErrorCodeCountsAsFailedAndKeepsDevice() throws Exception {
+        respond(error(null), ok());
+
+        PushResult result = sender.send(List.of("t1", "t2"), message(null));
+
+        assertThat(result).isEqualTo(new PushResult(1, 1, List.of()));
+    }
+
+    @Test
+    void failedResponseWithoutExceptionCountsAsFailed() throws Exception {
+        SendResponse r = mock(SendResponse.class);
+        when(r.isSuccessful()).thenReturn(false);
+        when(r.getException()).thenReturn(null);
+        respond(r);
+
+        PushResult result = sender.send(List.of("t1"), message(null));
+
+        assertThat(result).isEqualTo(new PushResult(0, 1, List.of()));
+    }
+
+    private static FirebaseMessagingException batchError() {
+        FirebaseMessagingException e = mock(FirebaseMessagingException.class);
+        when(e.getErrorCode()).thenReturn(ErrorCode.UNAVAILABLE);
+        when(e.getMessagingErrorCode()).thenReturn(MessagingErrorCode.UNAVAILABLE);
+        return e;
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void laterBatchFailureKeepsEarlierResults() throws Exception {
+        List<String> tokens = IntStream.range(0, 1201).mapToObj(i -> "tok-" + i).toList();
+        int[] call = {0};
+        when(firebase.sendEachForMulticast(any(), eq(false))).thenAnswer(inv -> {
+            if (++call[0] == 3) {
+                throw batchError();
+            }
+            MulticastMessage m = inv.getArgument(0);
+            int size = ((List<String>) field(m, "tokens")).size();
+            List<SendResponse> rs = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                rs.add(i == 0 ? error(MessagingErrorCode.UNREGISTERED) : ok());
+            }
+            return batch(rs);
+        });
+
+        PushResult result = sender.send(tokens, message(null));
+
+        assertThat(result.sent()).isEqualTo(998);
+        assertThat(result.failed()).isEqualTo(203);
+        assertThat(result.invalidTokens()).containsExactly("tok-0", "tok-500");
+    }
+
+    @Test
+    void allBatchesFailingThrows() throws Exception {
+        List<String> tokens = IntStream.range(0, 600).mapToObj(i -> "secret-" + i).toList();
+        FirebaseMessagingException failure = batchError();
+        when(firebase.sendEachForMulticast(any(), eq(false))).thenThrow(failure);
+
+        assertThatThrownBy(() -> sender.send(tokens, message(null)))
+                .isInstanceOf(PushDeliveryException.class)
+                .hasMessageNotContaining("secret-");
+        verify(firebase, times(2)).sendEachForMulticast(any(), eq(false));
+    }
 }
