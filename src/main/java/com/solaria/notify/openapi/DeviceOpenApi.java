@@ -1,0 +1,48 @@
+package com.solaria.notify.openapi;
+
+import org.springframework.http.ResponseEntity;
+
+import com.solaria.notify.dto.request.DeviceRegistrationRequestDTO;
+import com.solaria.notify.dto.response.DeviceResponseDTO;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+
+@Tag(name = "Aparelhos", description = "Aparelhos da pessoa autenticada que recebem push")
+public interface DeviceOpenApi {
+
+    @Operation(
+        summary = "Registra ou atualiza um aparelho",
+        description = "Upsert pelo installationId (Firebase Installation ID). Se o aparelho estava "
+                + "registrado para outra pessoa (troca de conta no mesmo celular), passa a pertencer "
+                + "somente à pessoa autenticada."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Aparelho registrado"),
+            @ApiResponse(responseCode = "400", description = "installationId ou corpo inválido"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado")
+    })
+    ResponseEntity<DeviceResponseDTO> register(
+            @Parameter(description = "Firebase Installation ID (letras, números, _ e -, até 64 caracteres)")
+            @Pattern(regexp = "^[A-Za-z0-9_-]{1,64}$", message = "installationId inválido") String installationId,
+            @Valid DeviceRegistrationRequestDTO dto);
+
+    @Operation(
+        summary = "Remove um aparelho da pessoa autenticada",
+        description = "Aparelho inexistente ou de outra pessoa responde 404."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Aparelho removido"),
+            @ApiResponse(responseCode = "400", description = "installationId inválido"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "404", description = "Aparelho não encontrado")
+    })
+    ResponseEntity<Void> remove(
+            @Parameter(description = "Firebase Installation ID")
+            @Pattern(regexp = "^[A-Za-z0-9_-]{1,64}$", message = "installationId inválido") String installationId);
+}

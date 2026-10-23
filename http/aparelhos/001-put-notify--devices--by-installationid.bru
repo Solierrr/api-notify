@@ -1,0 +1,29 @@
+meta {
+  name: [mutates] PUT /notify/devices/:installationId
+  type: http
+  seq: 1
+}
+
+put {
+  url: {{baseUrl}}/notify/devices/{{installationId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{userToken}}
+}
+
+body:json {
+  {
+    "fcmToken": "token-fcm-de-exemplo",
+    "platform": "ANDROID",
+    "appVersion": "1.0.0"
+  }
+}
+
+docs {
+  Registra ou atualiza um aparelho (upsert pelo Firebase Installation ID)
+  Se o aparelho estava registrado para outra pessoa, passa a pertencer somente à pessoa autenticada.
+  This operation may change server state.
+}
