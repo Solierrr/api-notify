@@ -11,9 +11,9 @@ Este repositório é Java 21 + Spring Boot, buildado com Maven. O processo local
 ## Possíveis Impedimentos
 
 - **JDK 21 instalado localmente**, a mesma versão usada no [`Dockerfile`](./Dockerfile). Rodar fora do container exige essa versão configurada como `JAVA_HOME`.
-- **MongoDB acessível**, o serviço se conecta via `DB_MONGO_URI` (padrão `mongodb://localhost:27017`) no banco `DB_MONGO_NOTIFY` (padrão `solaria_notify_db`). Sem Mongo, a aplicação sobe, mas qualquer chamada que toque o banco falha. O jeito mais simples de ter um Mongo local é `docker run -d -p 27017:27017 --name mongo-notify mongo:7.0`.
+- **MongoDB acessível**, o serviço se conecta via `DB_MONGO_URI` (padrão `mongodb://localhost:27017`) no banco `DB_MONGO_NOTIFY` (padrão `solaria_notify_db`). Sem Mongo a aplicação não sobe: a criação automática de índices no startup espera o servidor por cerca de 30 segundos e então aborta com `Timed out while waiting for a server`. O jeito mais simples de ter um Mongo local é `docker run -d -p 27017:27017 --name mongo-notify mongo:7.0`.
 - **`api-auth` local para o JWT de usuário**, `JWT_JWK_SET_URI` aponta por padrão para `http://localhost:8081/.well-known/jwks.json`. Sem o `api-auth` nessa porta, toda rota `/notify/**` responde `401`, porque o JWKS não pode ser buscado para validar a assinatura.
-- **Chave de serviço**, `SERVICE_KEY_API_CORE` e `SERVICE_KEY_API_MESSENGER` não têm valor padrão. Sem elas, qualquer chamada a `/internal/**` responde `401`. Para testar localmente, defina uma chave qualquer no `.env` e envie o mesmo valor no header `X-Service-Key`.
+- **Chave de serviço**, `SERVICE_KEY_API_CORE` e `SERVICE_KEY_API_MESSENGER` não têm valor padrão. Sem elas, qualquer chamada a `/internal/**` responde `401`. Chaves configuradas precisam ter pelo menos 32 caracteres, senão a aplicação não sobe. Para testar localmente, defina uma chave qualquer no `.env` e envie o mesmo valor no header `X-Service-Key`.
 - **`FIREBASE_ENABLED=false`**, a Fase 1 só tem o `PushSender` que registra o envio em log. Com `FIREBASE_ENABLED=true` não existe `PushSender` e a aplicação não sobe até a Fase 2.
 - **Secrets locais**, as variáveis injetadas em runtime pelo [Infisical](https://infisical.com) precisam ser criadas manualmente em `.env` na raiz do projeto (veja [`.env.example`](./.env.example)).
 

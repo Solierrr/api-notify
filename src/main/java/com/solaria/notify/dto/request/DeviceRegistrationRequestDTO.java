@@ -2,6 +2,7 @@ package com.solaria.notify.dto.request;
 
 import com.solaria.notify.model.enums.Platform;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -12,8 +13,9 @@ import lombok.Setter;
 @Setter
 public class DeviceRegistrationRequestDTO {
 
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minLength = 1)
     @NotBlank(message = "fcmToken é obrigatório")
-    @Size(max = 4096, message = "fcmToken deve ter no máximo 4096 caracteres")
+    @Size(min = 1, max = 4096, message = "fcmToken deve ter entre 1 e 4096 caracteres")
     private String fcmToken;
 
     @NotNull(message = "platform é obrigatório")

@@ -10,11 +10,11 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
 
     @Bean
-    public OpenAPI solierOpenApi() {
+    public OpenAPI solariaOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Solier/api-notify")
-                        .description("API Spring de notificações push do Solier.")
+                        .title("Solaria/api-notify")
+                        .description("API Spring de notificações push do Solaria.")
                         .version("v1"));
     }
 }

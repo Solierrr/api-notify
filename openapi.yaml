@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: Solier/api-notify
-  description: API Spring de notificações push do Solier.
+  title: Solaria/api-notify
+  description: API Spring de notificações push do Solaria.
   version: v1
 servers:
 - url: http://localhost:8080
@@ -243,7 +243,7 @@ components:
         fcmToken:
           type: string
           maxLength: 4096
-          minLength: 0
+          minLength: 1
         platform:
           type: string
           enum:
@@ -253,6 +253,7 @@ components:
           maxLength: 32
           minLength: 0
       required:
+      - fcmToken
       - platform
     DeviceResponseDTO:
       type: object
