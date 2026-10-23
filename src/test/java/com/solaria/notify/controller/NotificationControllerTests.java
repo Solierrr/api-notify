@@ -44,7 +44,7 @@ import com.solaria.notify.service.NotificationService;
 @Import({ SecurityConfig.class, ServiceKeyAuthFilter.class, ProblemDetailAuthenticationEntryPoint.class,
         ProblemDetailAccessDeniedHandler.class, ProblemDetailFactory.class, GlobalExceptionHandler.class })
 @TestPropertySource(properties = {
-        "app.service-keys.api-core=k1",
+        "app.service-keys.api-core=unit-test-service-key-0123456789abcdef",
         "app.cors.allowed-origins=http://localhost:3000",
         "app.jwt.jwk-set-uri=http://localhost:8081/.well-known/jwks.json",
         "app.jwt.issuer=solaria-auth" })
@@ -112,7 +112,11 @@ class NotificationControllerTests {
     void markReadWithInvalidUuidIs400() throws Exception {
         mockMvc.perform(patch("/notify/notifications/not-a-uuid/read").with(jwt()))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty())
+                .andExpect(jsonPath("$.instance").value("/notify/notifications/not-a-uuid/read"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("not-a-uuid\""))));
         verify(notificationService, never()).markRead(any());
     }
 

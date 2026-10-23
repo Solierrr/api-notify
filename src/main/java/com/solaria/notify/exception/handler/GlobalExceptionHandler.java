@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -201,6 +203,40 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
                 "Corpo da requisição malformado ou ilegível.",
                 "MALFORMED_REQUEST",
+                null,
+                servletRequest(request));
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    // Parâmetro de rota/query com tipo inválido (ex.: UUID malformado); não ecoa o valor recebido
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex,
+                                                        HttpHeaders headers,
+                                                        HttpStatusCode status,
+                                                        WebRequest request) {
+        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+
+        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
+                "Parâmetro da requisição com formato inválido.",
+                "INVALID_PARAMETER",
+                null,
+                servletRequest(request));
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    // Parâmetro obrigatório de query ausente
+
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+                                                                          HttpHeaders headers,
+                                                                          HttpStatusCode status,
+                                                                          WebRequest request) {
+        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+
+        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
+                "Parâmetro obrigatório da requisição ausente.",
+                "MISSING_PARAMETER",
                 null,
                 servletRequest(request));
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
