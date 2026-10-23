@@ -31,7 +31,7 @@ class ServiceKeyAuthFilterTests {
 
     @Test
     void authenticatesKnownKeyAsServiceName() throws Exception {
-        Authentication auth = run("k1", "k1");
+        Authentication auth = run("unit-test-service-key-0123456789abcdef", "unit-test-service-key-0123456789abcdef");
         assertThat(auth).isNotNull();
         assertThat(auth.getPrincipal()).isEqualTo("api-core");
         assertThat(auth.getAuthorities()).extracting(Object::toString).containsExactly("ROLE_SERVICE");
@@ -39,7 +39,7 @@ class ServiceKeyAuthFilterTests {
 
     @Test
     void ignoresUnknownKey() throws Exception {
-        assertThat(run("k1", "zz")).isNull();
+        assertThat(run("unit-test-service-key-0123456789abcdef", "zz")).isNull();
     }
 
     @Test
@@ -49,7 +49,7 @@ class ServiceKeyAuthFilterTests {
 
     @Test
     void missingHeaderLeavesContextEmpty() throws Exception {
-        assertThat(run("k1", null)).isNull();
+        assertThat(run("unit-test-service-key-0123456789abcdef", null)).isNull();
         assertThat(run("", null)).isNull();
     }
 }

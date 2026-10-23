@@ -38,7 +38,7 @@ import com.solaria.notify.service.DeviceService;
 @Import({ SecurityConfig.class, ServiceKeyAuthFilter.class, ProblemDetailAuthenticationEntryPoint.class,
         ProblemDetailAccessDeniedHandler.class, ProblemDetailFactory.class, GlobalExceptionHandler.class })
 @TestPropertySource(properties = {
-        "app.service-keys.api-core=k1",
+        "app.service-keys.api-core=unit-test-service-key-0123456789abcdef",
         "app.cors.allowed-origins=http://localhost:3000",
         "app.jwt.jwk-set-uri=http://localhost:8081/.well-known/jwks.json",
         "app.jwt.issuer=solaria-auth" })

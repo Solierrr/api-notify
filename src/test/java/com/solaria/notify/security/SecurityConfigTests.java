@@ -25,7 +25,7 @@ import com.solaria.notify.exception.handler.ProblemDetailFactory;
 @Import({ SecurityConfigTests.PingController.class, SecurityConfig.class, ServiceKeyAuthFilter.class, ProblemDetailAuthenticationEntryPoint.class,
         ProblemDetailAccessDeniedHandler.class, ProblemDetailFactory.class })
 @TestPropertySource(properties = {
-        "app.service-keys.api-core=k1",
+        "app.service-keys.api-core=unit-test-service-key-0123456789abcdef",
         "app.cors.allowed-origins=http://localhost:3000",
         "app.jwt.jwk-set-uri=http://localhost:8081/.well-known/jwks.json",
         "app.jwt.issuer=solaria-auth" })
@@ -59,7 +59,7 @@ class SecurityConfigTests {
 
     @Test
     void internalWithValidKeyIs200() throws Exception {
-        mockMvc.perform(get("/internal/ping").header("X-Service-Key", "k1"))
+        mockMvc.perform(get("/internal/ping").header("X-Service-Key", "unit-test-service-key-0123456789abcdef"))
                 .andExpect(status().isOk());
     }
 
