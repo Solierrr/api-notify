@@ -65,3 +65,12 @@ Desktop.ini
 
 # Linux
 .directory
+
+# SDD / specs locais
+.sdd
+docs/specs
+specs
+.superpowers
+
+# Build
+target/

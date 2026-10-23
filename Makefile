@@ -3,15 +3,15 @@
 # Requer: make e sh (Git Bash no Windows). Para `make vault`: Infisical CLI e `infisical login`.
 
 # ---- especifico deste repositorio ----
-VAULT_FOLDERS ?=
-INSTALL_CMD   ?=
-DEV_CMD       ?=
-BUILD_CMD     ?=
-TEST_CMD      ?=
-LINT_CMD      ?=
+VAULT_FOLDERS ?= /database /auth
+INSTALL_CMD   ?= ./mvnw dependency:go-offline
+DEV_CMD       ?= ./mvnw spring-boot:run
+BUILD_CMD     ?= ./mvnw package -DskipTests
+TEST_CMD      ?= ./mvnw test
+LINT_CMD      ?= ./mvnw org.apache.maven.plugins:maven-checkstyle-plugin:3.6.0:check -Dcheckstyle.config.location=google_checks.xml -Dcheckstyle.violationSeverity=error -B
 FORMAT_CMD    ?=
-CLEAN_PATHS   ?=
-DOCTOR_TOOLS  ?= git
+CLEAN_PATHS   ?= target
+DOCTOR_TOOLS  ?= git java
 
 # ---- padrao (nao editar por repositorio) ----
 INFISICAL_PROJECT_ID ?= 2296d19c-5f3b-41e1-afa3-fcde39966a71

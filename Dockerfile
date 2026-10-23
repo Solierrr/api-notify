@@ -1,26 +1,28 @@
-# TODO: imagem base
-# FROM
+FROM eclipse-temurin:21-jdk AS build
 
-# TODO: diretório de trabalho dentro do container
-# WORKDIR
+WORKDIR /app
 
-# TODO: copiar arquivos de dependências e instalar
-# COPY
-# RUN
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+RUN ./mvnw dependency:go-offline -B
 
-# TODO: copiar o restante do código-fonte
-# COPY
+COPY src ./src
+RUN ./mvnw package -DskipTests -B
 
-# TODO: copiar o entrypoint e torná-lo executável na imagem runtime
-# COPY entrypoint.sh ./entrypoint.sh
-# RUN chmod +x ./entrypoint.sh
+FROM eclipse-temurin:21-jre
 
-# TODO: build da aplicação
-# RUN
+WORKDIR /app
 
-# TODO: porta exposta pela aplicação
-# EXPOSE
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+    && curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | bash \
+    && apt-get update && apt-get install -y infisical \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# TODO: comando de inicialização do container
-# ENTRYPOINT ["./entrypoint.sh"]
-# CMD ["<comando da aplicação>"]
+COPY --from=build /app/target/*.jar app.jar
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+EXPOSE 8080
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["java", "-jar", "app.jar"]
