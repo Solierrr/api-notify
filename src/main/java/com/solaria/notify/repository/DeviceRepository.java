@@ -10,4 +10,6 @@ import com.solaria.notify.model.Device;
 public interface DeviceRepository extends MongoRepository<Device, String> {
 
     List<Device> findByAuthId(UUID authId);
+
+    long deleteByInstallationIdAndFcmToken(String installationId, String fcmToken);
 }

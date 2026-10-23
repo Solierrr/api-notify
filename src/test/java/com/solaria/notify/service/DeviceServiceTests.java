@@ -138,4 +138,17 @@ class DeviceServiceTests {
 
         verify(repository, never()).deleteById(anyString());
     }
+
+    @Test
+    void removeStaleDeletesByInstallationIdAndTokenAndCountsActualDeletions() {
+        Device current = new Device("fid-1", userA, "t1", Platform.ANDROID, "1.0", NOW, NOW);
+        Device reRegistered = new Device("fid-2", userA, "old", Platform.ANDROID, "1.0", NOW, NOW);
+        when(repository.deleteByInstallationIdAndFcmToken("fid-1", "t1")).thenReturn(1L);
+        when(repository.deleteByInstallationIdAndFcmToken("fid-2", "old")).thenReturn(0L);
+
+        int removed = service.removeStale(java.util.List.of(current, reRegistered));
+
+        assertThat(removed).isEqualTo(1);
+        verify(repository).deleteByInstallationIdAndFcmToken("fid-2", "old");
+    }
 }

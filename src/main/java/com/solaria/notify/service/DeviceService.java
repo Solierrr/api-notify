@@ -63,8 +63,14 @@ public class DeviceService {
         return deviceRepository.findByAuthId(authId);
     }
 
-    // Limpeza de tokens inválidos reportados pelo FCM
-    public void removeAll(Collection<String> installationIds) {
-        deviceRepository.deleteAllById(installationIds);
+    // Limpeza de tokens inválidos reportados pelo FCM: só remove se o aparelho ainda tem o mesmo token,
+    // para não apagar um registro refeito (novo token ou troca de conta) durante o envio
+    public int removeStale(Collection<Device> devices) {
+        int removed = 0;
+        for (Device device : devices) {
+            removed += (int) deviceRepository.deleteByInstallationIdAndFcmToken(device.getInstallationId(),
+                    device.getFcmToken());
+        }
+        return removed;
     }
 }

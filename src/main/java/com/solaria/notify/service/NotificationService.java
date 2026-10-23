@@ -119,17 +119,19 @@ public class NotificationService {
             return new NotificationDispatchResponseDTO(saved.getId(), 0, tokens.size(), 0);
         }
 
-        // tokens inválidos voltam ao installationId do aparelho para remoção
+        // tokens inválidos voltam ao aparelho para remoção; falha na limpeza não derruba a resposta
         Set<String> invalid = Set.copyOf(result.invalidTokens());
-        List<String> installationIds = devices.stream()
-                .filter(d -> invalid.contains(d.getFcmToken()))
-                .map(Device::getInstallationId)
-                .toList();
-        if (!installationIds.isEmpty()) {
-            deviceService.removeAll(installationIds);
+        List<Device> stale = devices.stream().filter(d -> invalid.contains(d.getFcmToken())).toList();
+        int removed = 0;
+        if (!stale.isEmpty()) {
+            try {
+                removed = deviceService.removeStale(stale);
+            } catch (RuntimeException e) {
+                log.error("Falha ao remover aparelhos com token inválido da notificação {}: {}", saved.getId(),
+                        e.getClass().getSimpleName());
+            }
         }
-        return new NotificationDispatchResponseDTO(saved.getId(), result.sent(), result.failed(),
-                installationIds.size());
+        return new NotificationDispatchResponseDTO(saved.getId(), result.sent(), result.failed(), removed);
     }
 
     private NotificationResponseDTO toDto(Notification n) {

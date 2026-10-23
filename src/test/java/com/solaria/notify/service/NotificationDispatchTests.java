@@ -123,20 +123,74 @@ class NotificationDispatchTests {
         assertThat(msg.getValue().notificationId()).isEqualTo(result.getId());
         assertThat(msg.getValue().type()).isEqualTo(NotificationType.NEW_MESSAGE);
         assertThat(result.getSent()).isEqualTo(2);
-        verify(deviceService, never()).removeAll(any());
+        verify(deviceService, never()).removeStale(any());
     }
 
     @Test
     void dispatchRemovesDevicesWithInvalidTokens() {
-        twoDevices();
+        Device d1 = device("fid-1", "t1");
+        Device d2 = device("fid-2", "t2");
+        when(deviceService.findByAuthId(user)).thenReturn(List.of(d1, d2));
         when(pushSender.send(any(), any())).thenReturn(new PushResult(1, 1, List.of("t2")));
+        when(deviceService.removeStale(any())).thenReturn(1);
 
         NotificationDispatchResponseDTO result = service.dispatch(request());
 
-        verify(deviceService).removeAll(List.of("fid-2"));
+        verify(deviceService).removeStale(List.of(d2));
         assertThat(result.getRemovedDevices()).isEqualTo(1);
         assertThat(result.getSent()).isEqualTo(1);
         assertThat(result.getFailed()).isEqualTo(1);
+    }
+
+    @Test
+    void removedDevicesReflectsActualDeletions() {
+        twoDevices();
+        when(pushSender.send(any(), any())).thenReturn(new PushResult(1, 1, List.of("t2")));
+        // aparelho foi refeito com outro token durante o envio: nada removido
+        when(deviceService.removeStale(any())).thenReturn(0);
+
+        NotificationDispatchResponseDTO result = service.dispatch(request());
+
+        assertThat(result.getRemovedDevices()).isZero();
+    }
+
+    @Test
+    void sharedInvalidTokenRemovesAllMatchingDevices() {
+        Device d1 = device("fid-1", "shared");
+        Device d2 = device("fid-2", "shared");
+        when(deviceService.findByAuthId(user)).thenReturn(List.of(d1, d2));
+        when(pushSender.send(any(), any())).thenReturn(new PushResult(0, 2, List.of("shared")));
+        when(deviceService.removeStale(any())).thenReturn(2);
+
+        NotificationDispatchResponseDTO result = service.dispatch(request());
+
+        verify(deviceService).removeStale(List.of(d1, d2));
+        assertThat(result.getRemovedDevices()).isEqualTo(2);
+    }
+
+    @Test
+    void nullInvalidTokensIsSafe() {
+        twoDevices();
+        when(pushSender.send(any(), any())).thenReturn(new PushResult(2, 0, null));
+
+        NotificationDispatchResponseDTO result = service.dispatch(request());
+
+        verify(deviceService, never()).removeStale(any());
+        assertThat(result.getSent()).isEqualTo(2);
+        assertThat(result.getRemovedDevices()).isZero();
+    }
+
+    @Test
+    void cleanupFailureDoesNotBreakDispatchResponse() {
+        twoDevices();
+        when(pushSender.send(any(), any())).thenReturn(new PushResult(1, 1, List.of("t2")));
+        when(deviceService.removeStale(any())).thenThrow(new RuntimeException("mongo down"));
+
+        NotificationDispatchResponseDTO result = service.dispatch(request());
+
+        assertThat(result.getSent()).isEqualTo(1);
+        assertThat(result.getFailed()).isEqualTo(1);
+        assertThat(result.getRemovedDevices()).isZero();
     }
 
     @Test
