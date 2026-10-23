@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 // Implementação padrão enquanto o FCM não está habilitado: só registra o disparo, nunca o token
 @Component
-@ConditionalOnProperty(name = "app.firebase.enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.fcm.enabled", havingValue = "false", matchIfMissing = true)
 public class LoggingPushSender implements PushSender {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingPushSender.class);
