@@ -1,0 +1,20 @@
+meta {
+  name: [mutates] PATCH /notify/notifications/read-all
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/notify/notifications/read-all
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{userToken}}
+}
+
+docs {
+  Marca todas as notificações da pessoa autenticada como lidas
+  This operation changes server state.
+}

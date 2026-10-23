@@ -1,0 +1,19 @@
+meta {
+  name: GET /notify/notifications/unread-count
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/notify/notifications/unread-count
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{userToken}}
+}
+
+docs {
+  Conta as notificações não lidas da pessoa autenticada
+}

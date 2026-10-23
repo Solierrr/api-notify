@@ -1,0 +1,21 @@
+meta {
+  name: [mutates] PATCH /notify/notifications/:id/read
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/notify/notifications/{{resourceId}}/read
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{userToken}}
+}
+
+docs {
+  Marca uma notificação como lida
+  Se já estava lida, mantém o readAt original. Inexistente ou de outra pessoa responde 404.
+  This operation may change server state.
+}

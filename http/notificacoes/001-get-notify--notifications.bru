@@ -1,0 +1,20 @@
+meta {
+  name: GET /notify/notifications
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/notify/notifications?page={{page}}&size={{size}}&unreadOnly=false
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{userToken}}
+}
+
+docs {
+  Lista o histórico de notificações da pessoa autenticada (mais recentes primeiro)
+  size acima de 100 é limitado a 100; page menor que 0 ou size menor que 1 responde 400.
+}
