@@ -57,7 +57,7 @@ class NotificationServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new NotificationService(repository, mongoTemplate, currentUser, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new NotificationService(repository, mongoTemplate, currentUser, Clock.fixed(NOW, ZoneOffset.UTC), null, null);
     }
 
     private Notification notification(Instant readAt) {

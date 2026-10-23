@@ -2,8 +2,13 @@ package com.solaria.notify.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,11 +18,17 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import com.solaria.notify.dto.request.InternalNotificationRequestDTO;
+import com.solaria.notify.dto.response.NotificationDispatchResponseDTO;
 import com.solaria.notify.dto.response.NotificationResponseDTO;
 import com.solaria.notify.dto.response.PageResponseDTO;
 import com.solaria.notify.dto.response.UnreadCountResponseDTO;
 import com.solaria.notify.exception.ResourceNotFoundException;
+import com.solaria.notify.model.Device;
 import com.solaria.notify.model.Notification;
+import com.solaria.notify.push.PushMessage;
+import com.solaria.notify.push.PushResult;
+import com.solaria.notify.push.PushSender;
 import com.solaria.notify.repository.NotificationRepository;
 import com.solaria.notify.security.CurrentUser;
 
@@ -25,14 +36,21 @@ import com.solaria.notify.security.CurrentUser;
 public class NotificationService {
 
     static final int MAX_PAGE_SIZE = 100;
+    static final int RETENTION_DAYS = 90;
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository notificationRepository;
     private final MongoTemplate mongoTemplate;
     private final CurrentUser currentUser;
     private final Clock clock;
+    private final DeviceService deviceService;
+    private final PushSender pushSender;
 
     public NotificationService(NotificationRepository notificationRepository, MongoTemplate mongoTemplate,
-            CurrentUser currentUser, Clock clock) {
+            CurrentUser currentUser, Clock clock, DeviceService deviceService, PushSender pushSender) {
+        this.deviceService = deviceService;
+        this.pushSender = pushSender;
         this.notificationRepository = notificationRepository;
         this.mongoTemplate = mongoTemplate;
         this.currentUser = currentUser;
@@ -68,6 +86,50 @@ public class NotificationService {
     public void markAllRead() {
         Query query = new Query(Criteria.where("authId").is(currentUser.authId()).and("readAt").is(null));
         mongoTemplate.updateMulti(query, new Update().set("readAt", Instant.now(clock)), Notification.class);
+    }
+
+    // Grava sempre; falha no envio nunca derruba a gravação. Sem aparelhos não chama o sender.
+    public NotificationDispatchResponseDTO dispatch(InternalNotificationRequestDTO dto) {
+        Instant now = Instant.now(clock);
+        Notification notification = new Notification();
+        notification.setId(UUID.randomUUID());
+        notification.setAuthId(dto.getAuthId());
+        notification.setType(dto.getType());
+        notification.setTitle(dto.getTitle());
+        notification.setBody(dto.getBody());
+        notification.setData(dto.getData());
+        notification.setSourceService(currentUser.serviceName());
+        notification.setCreatedAt(now);
+        notification.setExpireAt(now.plus(RETENTION_DAYS, ChronoUnit.DAYS));
+        Notification saved = notificationRepository.save(notification);
+
+        List<Device> devices = deviceService.findByAuthId(dto.getAuthId());
+        if (devices.isEmpty()) {
+            return new NotificationDispatchResponseDTO(saved.getId(), 0, 0, 0);
+        }
+
+        List<String> tokens = devices.stream().map(Device::getFcmToken).toList();
+        PushMessage message = new PushMessage(saved.getId(), saved.getType(), saved.getTitle(), saved.getBody(),
+                saved.getData());
+        PushResult result;
+        try {
+            result = pushSender.send(tokens, message);
+        } catch (RuntimeException e) {
+            log.error("Falha ao enviar push da notificação {}", saved.getId(), e);
+            return new NotificationDispatchResponseDTO(saved.getId(), 0, tokens.size(), 0);
+        }
+
+        // tokens inválidos voltam ao installationId do aparelho para remoção
+        Set<String> invalid = Set.copyOf(result.invalidTokens());
+        List<String> installationIds = devices.stream()
+                .filter(d -> invalid.contains(d.getFcmToken()))
+                .map(Device::getInstallationId)
+                .toList();
+        if (!installationIds.isEmpty()) {
+            deviceService.removeAll(installationIds);
+        }
+        return new NotificationDispatchResponseDTO(saved.getId(), result.sent(), result.failed(),
+                installationIds.size());
     }
 
     private NotificationResponseDTO toDto(Notification n) {

@@ -1,0 +1,33 @@
+meta {
+  name: [mutates] POST /internal/notifications
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/internal/notifications
+  body: json
+  auth: none
+}
+
+headers {
+  X-Service-Key: {{serviceToken}}
+}
+
+body:json {
+  {
+    "authId": "{{sampleUuid}}",
+    "type": "NEW_MESSAGE",
+    "title": "Nova mensagem",
+    "body": "Você recebeu uma mensagem",
+    "data": {
+      "chatId": "exemplo"
+    }
+  }
+}
+
+docs {
+  Grava a notificação no histórico e dispara o push para os aparelhos da pessoa (rota interna, nunca via Kong)
+  Sem aparelhos registrados responde 201 com sent=0.
+  This operation changes server state.
+}
