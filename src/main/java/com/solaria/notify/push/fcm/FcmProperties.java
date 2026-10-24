@@ -13,6 +13,9 @@ public class FcmProperties {
     private String credentialsBase64 = "";
     private String projectId = "";
     private boolean dryRun;
+    // Em milissegundos
+    private int connectTimeout = 5000;
+    private int readTimeout = 10000;
 
     public boolean isEnabled() {
         return enabled;
@@ -44,5 +47,21 @@ public class FcmProperties {
 
     public void setDryRun(boolean dryRun) {
         this.dryRun = dryRun;
+    }
+
+    public int getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public void setConnectTimeout(int connectTimeout) {
+        this.connectTimeout = connectTimeout;
+    }
+
+    public int getReadTimeout() {
+        return readTimeout;
+    }
+
+    public void setReadTimeout(int readTimeout) {
+        this.readTimeout = readTimeout;
     }
 }

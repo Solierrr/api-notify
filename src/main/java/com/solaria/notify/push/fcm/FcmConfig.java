@@ -4,7 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Base64;
 
-import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -27,18 +27,22 @@ public class FcmConfig {
         if (encoded == null || encoded.isBlank()) {
             throw new IllegalStateException(INVALID_CREDENTIALS);
         }
+        FirebaseOptions.Builder options;
         try {
             byte[] json = Base64.getMimeDecoder().decode(encoded.trim());
-            GoogleCredentials credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(json));
-            FirebaseOptions.Builder options = FirebaseOptions.builder().setCredentials(credentials);
-            if (properties.getProjectId() != null && !properties.getProjectId().isBlank()) {
-                options.setProjectId(properties.getProjectId().trim());
-            }
-            return FirebaseApp.initializeApp(options.build(), APP_NAME);
-        } catch (IllegalArgumentException | IOException e) {
+            ServiceAccountCredentials credentials = ServiceAccountCredentials
+                    .fromStream(new ByteArrayInputStream(json));
+            options = FirebaseOptions.builder().setCredentials(credentials);
+        } catch (IOException | RuntimeException e) {
             // Sem causa: a mensagem do parser pode citar trechos do conteúdo da credencial
             throw new IllegalStateException(INVALID_CREDENTIALS);
         }
+        if (properties.getProjectId() != null && !properties.getProjectId().isBlank()) {
+            options.setProjectId(properties.getProjectId().trim());
+        }
+        // Sem timeout o SDK espera para sempre; um FCM lento seguraria a thread da requisição
+        options.setConnectTimeout(properties.getConnectTimeout()).setReadTimeout(properties.getReadTimeout());
+        return FirebaseApp.initializeApp(options.build(), APP_NAME);
     }
 
     @Bean
