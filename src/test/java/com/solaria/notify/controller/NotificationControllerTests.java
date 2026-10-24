@@ -63,13 +63,14 @@ class NotificationControllerTests {
     void listReturnsPage() throws Exception {
         NotificationResponseDTO item = new NotificationResponseDTO(UUID.randomUUID(), NotificationType.NEW_MESSAGE,
                 "t", "b", Map.of("k", "v"), Instant.parse("2026-01-10T12:00:00Z"), null);
-        when(notificationService.list(0, 20, false)).thenReturn(new PageResponseDTO<>(List.of(item), 0, 20, 1));
+        when(notificationService.list(0, 20, false)).thenReturn(new PageResponseDTO<>(List.of(item), 0, 20, 1, 1));
 
         mockMvc.perform(get("/notify/notifications").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].type").value("NEW_MESSAGE"))
                 .andExpect(jsonPath("$.size").value(20))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test

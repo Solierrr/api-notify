@@ -65,7 +65,8 @@ public class NotificationService {
                 ? notificationRepository.findByAuthIdAndReadAtIsNullOrderByCreatedAtDesc(authId, pageable)
                 : notificationRepository.findByAuthIdOrderByCreatedAtDesc(authId, pageable);
         return new PageResponseDTO<>(result.getContent().stream().map(this::toDto).toList(),
-                pageable.getPageNumber(), pageable.getPageSize(), result.getTotalElements());
+                pageable.getPageNumber(), pageable.getPageSize(), result.getTotalElements(),
+                result.getTotalPages());
     }
 
     public UnreadCountResponseDTO unreadCount() {
