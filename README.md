@@ -52,7 +52,9 @@ O envio push em si fica atrás da interface `PushSender`. Há duas implementaç�
 |---|---|---|
 | `POST` | `/internal/notifications` | Grava a notificação, envia o push aos aparelhos do destinatário e responde `201` com `{id, sent, failed, removedDevices}`. |
 
-O contrato completo está em [`openapi.yaml`](./openapi.yaml) e, com o serviço no ar, em `/swagger-ui.html`.
+O contrato completo, com a rota interna, está em [`openapi.yaml`](./openapi.yaml), gerado do código por `make openapi` e conferido no CI. Com o serviço no ar, o Swagger UI fica em `/docs` e o contrato em `/openapi.json`, sem a rota interna; `DOCS_ENABLED=false` desliga os dois (PROD).
+
+Todo erro responde `application/problem+json` no [contrato de erro](https://github.com/Solierrr/docs-warehouse/blob/main/docs/standards/ERRORS.md) da organização, com `errorCode` do [catálogo](https://github.com/Solierrr/docs-warehouse/blob/main/docs/standards/ERROR_CODES.md): corpo ou parâmetro inválido responde `422` (`VALIDATION_FAILED` ou `MALFORMED_REQUEST`), recurso de outra pessoa ou inexistente `404` (`NOT_FOUND`) e falta de credencial `401` (`UNAUTHENTICATED`).
 
 ## Variáveis de ambiente
 
@@ -64,6 +66,7 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 | `DB_MONGO_NOTIFY` | Nome do banco (padrão `solaria_notify_db`). |
 | `JWT_JWK_SET_URI` | JWKS do `api-auth` para validar o JWT de usuário (padrão `http://localhost:8081/.well-known/jwks.json`). |
 | `CORS_ALLOWED_ORIGINS` | Origens aceitas no CORS, separadas por vírgula (padrão `http://localhost:3000,http://localhost:5173`). No QA inclui a origem do `web-sandbox`, que abre o Swagger. |
+| `DOCS_ENABLED` | `true` (padrão) expõe o Swagger em `/docs` e o contrato em `/openapi.json`; `false` desliga os dois. Em PROD fica `false`. |
 | `SERVICE_KEY_API_MESSENGER` | Chave de serviço do `api-messenger`. Vazia, o serviço nunca autentica. |
 | `SERVICE_KEY_API_CORE` | Chave de serviço do `api-core`. Vazia, o serviço nunca autentica. |
 | `FCM_ENABLED` | `true` liga o envio real via Firebase Cloud Messaging; `false` (padrão) usa o `PushSender` que só registra o envio em log. O valor deve ser exatamente `true` ou `false`: qualquer outro (ou vazio) deixa a aplicação sem `PushSender` e ela não sobe. Com `true`, `FCM_CREDENTIALS_BASE64` é obrigatória, senão a aplicação não sobe. |
@@ -82,8 +85,14 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 - **Falhas por token**: o SDK devolve erros de credencial (`UNAUTHENTICATED`, `PERMISSION_DENIED`) e de rede por token, não pela chamada. Esses tokens contam como `failed`, o aparelho fica e o envio loga um `WARN` com o resumo dos códigos (`codes={PERMISSION_DENIED=3, ...}`), nunca os tokens.
 - **Falha da chamada inteira**: a exceção da chamada (`PushDeliveryException`) é praticamente só de interrupção da thread. Se um lote lança, os tokens dele contam como `failed` e os seguintes continuam; só quando todos os lotes lançam o envio é falha total (`failed` igual ao número de aparelhos, nenhum removido). Em qualquer caso a notificação continua gravada.
 - **Credencial de outro projeto**: se todas as respostas do envio forem `SENDER_ID_MISMATCH`, os aparelhos não são removidos e o envio loga um `ERROR` avisando que a credencial provavelmente é de outro projeto Firebase.
-- **Limite de payload**: a soma dos bytes UTF-8 de todas as chaves e valores (fixos mais `data`) não pode passar de 3800 bytes, margem sob os 4096 do FCM. Acima disso a rota responde `400` antes de gravar. O limite não aparece no schema do `openapi.yaml`.
+- **Limite de payload**: a soma dos bytes UTF-8 de todas as chaves e valores (fixos mais `data`) não pode passar de 3800 bytes, margem sob os 4096 do FCM. Acima disso a rota responde `422` antes de gravar. O limite fica na descrição da operação no `openapi.yaml`, não no schema.
 - O token FCM, a credencial e as chaves de serviço nunca são logados.
+
+## Health e versão
+
+- Vivo: `GET /actuator/health/liveness`, só o processo.
+- Pronto: `GET /actuator/health/readiness`, que inclui o Mongo; responde `503` quando o Mongo não responde. É o caminho do `healthCheckPath` do Render e do `environment-status`.
+- Versão: `GET /actuator/info` mostra `build.version`, a mesma do `pom.xml` e do `info.version` do contrato, que o release-please atualiza a cada release.
 
 ## Deploy
 
