@@ -63,6 +63,7 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 | `DB_MONGO_URI` | URI base do MongoDB (padrão `mongodb://localhost:27017`). |
 | `DB_MONGO_NOTIFY` | Nome do banco (padrão `solaria_notify_db`). |
 | `JWT_JWK_SET_URI` | JWKS do `api-auth` para validar o JWT de usuário (padrão `http://localhost:8081/.well-known/jwks.json`). |
+| `CORS_ALLOWED_ORIGINS` | Origens aceitas no CORS, separadas por vírgula (padrão `http://localhost:3000,http://localhost:5173`). No QA inclui a origem do `web-sandbox`, que abre o Swagger. |
 | `SERVICE_KEY_API_MESSENGER` | Chave de serviço do `api-messenger`. Vazia, o serviço nunca autentica. |
 | `SERVICE_KEY_API_CORE` | Chave de serviço do `api-core`. Vazia, o serviço nunca autentica. |
 | `FCM_ENABLED` | `true` liga o envio real via Firebase Cloud Messaging; `false` (padrão) usa o `PushSender` que só registra o envio em log. O valor deve ser exatamente `true` ou `false`: qualquer outro (ou vazio) deixa a aplicação sem `PushSender` e ela não sobe. Com `true`, `FCM_CREDENTIALS_BASE64` é obrigatória, senão a aplicação não sobe. |
