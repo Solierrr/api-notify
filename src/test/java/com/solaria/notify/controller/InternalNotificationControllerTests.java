@@ -155,6 +155,7 @@ class InternalNotificationControllerTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.errors[0].field").value("payload"))
                 .andExpect(jsonPath("$.errors[0].message").value("payload excede o limite de envio do FCM"));
         verify(notificationService, never()).dispatch(any());
     }

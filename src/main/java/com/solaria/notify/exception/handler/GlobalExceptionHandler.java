@@ -153,10 +153,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .getAllErrors()
                 .stream()
                 .map(oe -> {
-                    // erros de classe (ex.: @FcmPayloadSize) não têm campo; usa o nome do objeto
+                    // erros de classe (ex.: @FcmPayloadSize) não têm campo; reporta "payload" em vez do nome do bean
                     Map<String, Object> entry = new LinkedHashMap<>();
                     entry.put("field", oe instanceof org.springframework.validation.FieldError fe
-                            ? fe.getField() : oe.getObjectName());
+                            ? fe.getField() : "payload");
                     entry.put("message", oe.getDefaultMessage());
                     return entry;
                 })
