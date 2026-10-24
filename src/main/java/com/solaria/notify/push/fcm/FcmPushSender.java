@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.BatchResponse;
@@ -51,6 +52,9 @@ public class FcmPushSender implements PushSender {
         int failed = 0;
         int failedBatches = 0;
         int batchCount = 0;
+        int totalResponses = 0;
+        int senderMismatches = 0;
+        Map<String, Integer> codes = new TreeMap<>();
         List<String> invalid = new ArrayList<>();
 
         PushDeliveryException lastFailure = null;
@@ -78,15 +82,20 @@ public class FcmPushSender implements PushSender {
             List<SendResponse> responses = response.getResponses();
             for (int i = 0; i < responses.size(); i++) {
                 SendResponse r = responses.get(i);
+                totalResponses++;
                 if (r.isSuccessful()) {
                     sent++;
                     continue;
                 }
                 failed++;
                 FirebaseMessagingException error = r.getException();
+                codes.merge(codeName(error), 1, Integer::sum);
                 if (error != null && error.getMessagingErrorCode() != null
                         && INVALID_TOKEN_CODES.contains(error.getMessagingErrorCode())) {
                     invalid.add(batch.get(i));
+                    if (error.getMessagingErrorCode() == MessagingErrorCode.SENDER_ID_MISMATCH) {
+                        senderMismatches++;
+                    }
                 }
             }
         }
@@ -95,9 +104,35 @@ public class FcmPushSender implements PushSender {
             throw lastFailure;
         }
 
-        log.info("Push FCM: notificationId={} type={} sent={} failed={} invalid={} dryRun={}",
-                message.notificationId(), message.type(), sent, failed, invalid.size(), properties.isDryRun());
+        if (totalResponses > 0 && senderMismatches == totalResponses) {
+            // Todos os tokens recusados por SENDER_ID_MISMATCH: quase certo que a credencial é de outro
+            // projeto Firebase; remover os aparelhos apagaria tokens que estão corretos
+            log.error("FCM recusou todos os tokens com SENDER_ID_MISMATCH: a credencial provavelmente pertence "
+                    + "a outro projeto Firebase. Aparelhos mantidos. notificationId={} failed={}",
+                    message.notificationId(), failed);
+            invalid.clear();
+        }
+
+        if (failed > 0) {
+            log.warn("Push FCM com falhas: notificationId={} type={} sent={} failed={} invalid={} dryRun={} codes={}",
+                    message.notificationId(), message.type(), sent, failed, invalid.size(), properties.isDryRun(),
+                    codes);
+        } else {
+            log.info("Push FCM: notificationId={} type={} sent={} failed={} invalid={} dryRun={}",
+                    message.notificationId(), message.type(), sent, failed, invalid.size(), properties.isDryRun());
+        }
         return new PushResult(sent, failed, invalid);
+    }
+
+    // Nome do código de erro por token (nunca o token): MessagingErrorCode, senão o código de plataforma
+    private static String codeName(FirebaseMessagingException error) {
+        if (error == null) {
+            return "NO_EXCEPTION";
+        }
+        if (error.getMessagingErrorCode() != null) {
+            return error.getMessagingErrorCode().name();
+        }
+        return error.getErrorCode() != null ? error.getErrorCode().name() : "NO_EXCEPTION";
     }
 
     private static Map<String, String> payload(PushMessage message) {

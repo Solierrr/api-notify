@@ -16,9 +16,16 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import com.google.firebase.ErrorCode;
 import com.google.firebase.messaging.BatchResponse;
@@ -39,9 +46,34 @@ class FcmPushSenderTests {
     FcmPushSender sender;
     UUID id = UUID.randomUUID();
 
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    Logger senderLogger = (Logger) LoggerFactory.getLogger(FcmPushSender.class);
+
     @BeforeEach
     void setUp() {
         sender = new FcmPushSender(firebase, properties);
+        logs.start();
+        senderLogger.addAppender(logs);
+    }
+
+    @AfterEach
+    void tearDown() {
+        senderLogger.detachAppender(logs);
+    }
+
+    private static SendResponse errorWithPlatformCode(ErrorCode code) {
+        SendResponse r = mock(SendResponse.class);
+        FirebaseMessagingException e = mock(FirebaseMessagingException.class);
+        when(e.getErrorCode()).thenReturn(code);
+        when(r.isSuccessful()).thenReturn(false);
+        when(r.getException()).thenReturn(e);
+        return r;
+    }
+
+    private static SendResponse errorWithoutException() {
+        SendResponse r = mock(SendResponse.class);
+        when(r.isSuccessful()).thenReturn(false);
+        return r;
     }
 
     private PushMessage message(Map<String, String> data) {
@@ -175,6 +207,54 @@ class FcmPushSenderTests {
                 .hasMessageContaining("THIRD_PARTY_AUTH_ERROR")
                 .hasMessageNotContaining("secret-token")
                 .hasNoCause();
+    }
+
+    @Test
+    void failuresAreLoggedAtWarnWithCodeSummaryAndNoTokens() throws Exception {
+        respond(ok(), error(MessagingErrorCode.UNAVAILABLE), error(MessagingErrorCode.UNAVAILABLE),
+                errorWithPlatformCode(ErrorCode.PERMISSION_DENIED), errorWithoutException());
+
+        sender.send(List.of("secret-1", "secret-2", "secret-3", "secret-4", "secret-5"), message(null));
+
+        List<ILoggingEvent> warns = logs.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+        assertThat(warns).hasSize(1);
+        String line = warns.get(0).getFormattedMessage();
+        assertThat(line).contains("sent=1", "failed=4", "invalid=0", "dryRun=false",
+                "codes={NO_EXCEPTION=1, PERMISSION_DENIED=1, UNAVAILABLE=2}").doesNotContain("secret");
+    }
+
+    @Test
+    void fullSuccessLogsAtInfoOnly() throws Exception {
+        respond(ok(), ok());
+
+        sender.send(List.of("t1", "t2"), message(null));
+
+        assertThat(logs.list).noneMatch(e -> e.getLevel() == Level.WARN || e.getLevel() == Level.ERROR);
+        assertThat(logs.list).anyMatch(e -> e.getLevel() == Level.INFO);
+    }
+
+    @Test
+    void allSenderIdMismatchKeepsDevicesAndLogsError() throws Exception {
+        respond(error(MessagingErrorCode.SENDER_ID_MISMATCH), error(MessagingErrorCode.SENDER_ID_MISMATCH));
+
+        PushResult result = sender.send(List.of("secret-1", "secret-2"), message(null));
+
+        assertThat(result.sent()).isZero();
+        assertThat(result.failed()).isEqualTo(2);
+        assertThat(result.invalidTokens()).isEmpty();
+        List<ILoggingEvent> errors = logs.list.stream().filter(e -> e.getLevel() == Level.ERROR).toList();
+        assertThat(errors).hasSize(1);
+        assertThat(errors.get(0).getFormattedMessage()).contains("SENDER_ID_MISMATCH").doesNotContain("secret");
+    }
+
+    @Test
+    void senderIdMismatchMixedWithSuccessStillRemovesDevice() throws Exception {
+        respond(ok(), error(MessagingErrorCode.SENDER_ID_MISMATCH));
+
+        PushResult result = sender.send(List.of("t1", "t2"), message(null));
+
+        assertThat(result).isEqualTo(new PushResult(1, 1, List.of("t2")));
+        assertThat(logs.list).noneMatch(e -> e.getLevel() == Level.ERROR);
     }
 
     @Test
