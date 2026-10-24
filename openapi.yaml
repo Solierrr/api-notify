@@ -1,361 +1,641 @@
 openapi: 3.1.0
 info:
-  title: Solaria/api-notify
-  description: API Spring de notificações push do Solaria.
-  version: v1
+  contact:
+    name: Solaria
+    url: https://github.com/Solierrr
+  description: "Serviço de notificações push da Solaria, usado pelo app mobile: registra\
+    \ os aparelhos de cada pessoa, guarda o histórico de notificações de cada usuá\
+    rio e recebe dos outros serviços o pedido de disparo. As rotas /notify/** usam\
+    \ o JWT emitido pelo api-auth (bearerAuth); a rota interna usa a chave de serviç\
+    o do chamador no cabeçalho X-Service-Key (serviceKey)."
+  license:
+    name: CC0-1.0
+    url: https://creativecommons.org/publicdomain/zero/1.0/
+  title: Solaria — api-notify
+  version: 0.2.0 # x-release-please-version
 servers:
-- url: http://localhost:8080
-  description: Generated server url
+- description: Local
+  url: http://localhost:8080
+- description: QA
+  url: https://api-notify-i637.onrender.com
+security:
+- bearerAuth: []
 tags:
-- name: Notificações
-  description: Histórico de notificações da pessoa autenticada
-- name: Aparelhos
-  description: Aparelhos da pessoa autenticada que recebem push
-- name: Interno
-  description: Disparo de notificações entre serviços (X-Service-Key)
+- description: Histórico de notificações da pessoa autenticada
+  name: Notificações
+- description: Aparelhos da pessoa autenticada que recebem push
+  name: Aparelhos
+- description: Disparo de notificações entre serviços (X-Service-Key)
+  name: Interno
 paths:
-  /notify/devices/{installationId}:
-    put:
-      tags:
-      - Aparelhos
-      summary: Registra ou atualiza um aparelho
-      description: Upsert pelo installationId (Firebase Installation ID). Se o aparelho
-        estava registrado para outra pessoa (troca de conta no mesmo celular), passa
-        a pertencer somente à pessoa autenticada.
-      operationId: register
-      parameters:
-      - name: installationId
-        in: path
-        description: Firebase Installation ID (letras, números, _ e -, até 64 caracteres)
-        required: true
-        schema:
-          type: string
-          pattern: ^[A-Za-z0-9_-]{1,64}$
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeviceRegistrationRequestDTO'
-        required: true
-      responses:
-        '200':
-          description: Aparelho registrado
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/DeviceResponseDTO'
-        '400':
-          description: installationId ou corpo inválido
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/DeviceResponseDTO'
-        '401':
-          description: Não autenticado
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/DeviceResponseDTO'
-    delete:
-      tags:
-      - Aparelhos
-      summary: Remove um aparelho da pessoa autenticada
-      description: Aparelho inexistente ou de outra pessoa responde 404.
-      operationId: remove
-      parameters:
-      - name: installationId
-        in: path
-        description: Firebase Installation ID
-        required: true
-        schema:
-          type: string
-          pattern: ^[A-Za-z0-9_-]{1,64}$
-      responses:
-        '204':
-          description: Aparelho removido
-        '400':
-          description: installationId inválido
-        '401':
-          description: Não autenticado
-        '404':
-          description: Aparelho não encontrado
   /internal/notifications:
     post:
-      tags:
-      - Interno
-      summary: Grava e dispara uma notificação push
-      description: Sempre grava no histórico; se a pessoa não tiver aparelhos, responde
-        201 com sent=0. Aparelhos com token rejeitado pelo provedor são removidos.
-      operationId: dispatch
+      description: "Sempre grava no histórico; se a pessoa não tiver aparelhos, responde\
+        \ 201 com sent=0. Aparelhos com token rejeitado pelo provedor são removidos.\
+        \ A soma dos bytes UTF-8 de title, body, type e data não pode passar de 3800\
+        \ bytes (limite do FCM com margem). Chamada pelos serviços com a chave de\
+        \ serviço própria; nunca exposta pelo gateway."
+      operationId: dispatchNotification
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InternalNotificationRequestDTO'
+              $ref: "#/components/schemas/InternalNotificationRequestDTO"
         required: true
       responses:
-        '201':
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationDispatchResponseDTO"
           description: Notificação gravada e disparada
+        "401":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/NotificationDispatchResponseDTO'
-        '400':
-          description: Corpo inválido
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/NotificationDispatchResponseDTO'
-        '401':
+                $ref: "#/components/schemas/ProblemDetail"
           description: Chave de serviço ausente ou inválida
+        "422":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/NotificationDispatchResponseDTO'
-  /notify/notifications/{id}/read:
-    patch:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Corpo inválido
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      security:
+      - serviceKey: []
+      summary: Grava e dispara uma notificação push
       tags:
-      - Notificações
-      summary: Marca uma notificação como lida
-      description: 'Idempotente: se já estava lida, mantém o readAt original. Notificação
-        inexistente ou de outra pessoa responde 404.'
-      operationId: markRead
+      - Interno
+      x-error-codes:
+      - VALIDATION_FAILED
+      - MALFORMED_REQUEST
+      - UNAUTHENTICATED
+      - INTERNAL_ERROR
+  /notify/devices/{installationId}:
+    delete:
+      description: Aparelho inexistente ou de outra pessoa responde 404.
+      operationId: removeDevice
       parameters:
-      - name: id
+      - description: Firebase Installation ID
+        example: fJ3kP9xQ-2mVb7Lw_Zt1Ry
         in: path
-        description: Id da notificação
+        name: installationId
         required: true
         schema:
           type: string
-          format: uuid
+          pattern: "^[A-Za-z0-9_-]{1,64}$"
       responses:
-        '200':
-          description: Notificação marcada como lida
+        "204":
+          description: Aparelho removido
+        "401":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/NotificationResponseDTO'
-        '400':
-          description: id inválido
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/NotificationResponseDTO'
-        '401':
+                $ref: "#/components/schemas/ProblemDetail"
           description: Não autenticado
+        "404":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/NotificationResponseDTO'
-        '404':
-          description: Notificação não encontrada
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Aparelho não encontrado
+        "422":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/NotificationResponseDTO'
-  /notify/notifications/read-all:
-    patch:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: installationId inválido
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      summary: Remove um aparelho da pessoa autenticada
       tags:
-      - Notificações
-      summary: Marca todas as notificações da pessoa como lidas
-      operationId: markAllRead
+      - Aparelhos
+      x-error-codes:
+      - VALIDATION_FAILED
+      - UNAUTHENTICATED
+      - NOT_FOUND
+      - INTERNAL_ERROR
+    put:
+      description: "Upsert pelo installationId (Firebase Installation ID). Se o aparelho\
+        \ estava registrado para outra pessoa (troca de conta no mesmo celular), passa\
+        \ a pertencer somente à pessoa autenticada."
+      operationId: registerDevice
+      parameters:
+      - description: "Firebase Installation ID (letras, números, _ e -, até 64 caracteres)"
+        example: fJ3kP9xQ-2mVb7Lw_Zt1Ry
+        in: path
+        name: installationId
+        required: true
+        schema:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{1,64}$"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegistrationRequestDTO"
+        required: true
       responses:
-        '204':
-          description: Notificações marcadas como lidas
-        '401':
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponseDTO"
+          description: Aparelho registrado
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
           description: Não autenticado
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: installationId ou corpo inválido
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      summary: Registra ou atualiza um aparelho
+      tags:
+      - Aparelhos
+      x-error-codes:
+      - VALIDATION_FAILED
+      - MALFORMED_REQUEST
+      - UNAUTHENTICATED
+      - INTERNAL_ERROR
   /notify/notifications:
     get:
-      tags:
-      - Notificações
-      summary: Lista o histórico de notificações
       description: Mais recentes primeiro. size acima de 100 é limitado a 100.
-      operationId: list
+      operationId: listNotifications
       parameters:
-      - name: page
+      - description: "Número da página, começando em 0"
+        example: 0
         in: query
-        description: Número da página, começando em 0
+        name: page
         required: false
         schema:
           type: integer
           format: int32
           default: 0
           minimum: 0
-      - name: size
+      - description: Tamanho da página (máximo efetivo 100)
+        example: 20
         in: query
-        description: Tamanho da página (máximo efetivo 100)
+        name: size
         required: false
         schema:
           type: integer
           format: int32
           default: 20
           minimum: 1
-      - name: unreadOnly
+      - description: Somente não lidas
+        example: false
         in: query
-        description: Somente não lidas
+        name: unreadOnly
         required: false
         schema:
           type: boolean
           default: false
       responses:
-        '200':
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageResponseDTONotificationResponseDTO"
           description: Página de notificações
+        "401":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/PageResponseDTONotificationResponseDTO'
-        '400':
-          description: page menor que 0 ou size menor que 1
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/PageResponseDTONotificationResponseDTO'
-        '401':
+                $ref: "#/components/schemas/ProblemDetail"
           description: Não autenticado
+        "422":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/PageResponseDTONotificationResponseDTO'
-  /notify/notifications/unread-count:
-    get:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "page menor que 0, size menor que 1 ou parâmetro com formato\
+            \ inválido"
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      summary: Lista o histórico de notificações
       tags:
       - Notificações
-      summary: Conta as notificações não lidas
-      operationId: unreadCount
+      x-error-codes:
+      - VALIDATION_FAILED
+      - UNAUTHENTICATED
+      - INTERNAL_ERROR
+  /notify/notifications/read-all:
+    patch:
+      description: Marca as não lidas da pessoa autenticada; as já lidas mantêm o
+        readAt original.
+      operationId: markAllNotificationsRead
       responses:
-        '200':
-          description: Quantidade de não lidas
+        "204":
+          description: Notificações marcadas como lidas
+        "401":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/UnreadCountResponseDTO'
-        '401':
+                $ref: "#/components/schemas/ProblemDetail"
           description: Não autenticado
+        "500":
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/UnreadCountResponseDTO'
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      summary: Marca todas as notificações da pessoa como lidas
+      tags:
+      - Notificações
+      x-error-codes:
+      - UNAUTHENTICATED
+      - INTERNAL_ERROR
+  /notify/notifications/unread-count:
+    get:
+      description: Conta só as notificações da pessoa autenticada.
+      operationId: countUnreadNotifications
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCountResponseDTO"
+          description: Quantidade de não lidas
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Não autenticado
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      summary: Conta as notificações não lidas
+      tags:
+      - Notificações
+      x-error-codes:
+      - UNAUTHENTICATED
+      - INTERNAL_ERROR
+  /notify/notifications/{id}/read:
+    patch:
+      description: "Idempotente: se já estava lida, mantém o readAt original. Notificaç\
+        ão inexistente ou de outra pessoa responde 404."
+      operationId: markNotificationRead
+      parameters:
+      - description: Id da notificação
+        example: 3f2b8c1e-5d4a-4e9b-9c7d-1a2b3c4d5e6f
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponseDTO"
+          description: Notificação marcada como lida
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Não autenticado
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Notificação não encontrada
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: id com formato inválido
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Erro interno inesperado
+      summary: Marca uma notificação como lida
+      tags:
+      - Notificações
+      x-error-codes:
+      - VALIDATION_FAILED
+      - UNAUTHENTICATED
+      - NOT_FOUND
+      - INTERNAL_ERROR
 components:
   schemas:
     DeviceRegistrationRequestDTO:
       type: object
       properties:
+        appVersion:
+          type: string
+          description: Versão do app instalada no aparelho
+          example: 1.4.0
+          maxLength: 32
+          minLength: 0
         fcmToken:
           type: string
+          description: Token FCM atual do aparelho
+          example: dQw4w9WgXcQ:APA91bHun4MxP5egoKMwt2KZFBaFUH-1RYqx
           maxLength: 4096
           minLength: 1
         platform:
-          type: string
-          enum:
-          - ANDROID
-        appVersion:
-          type: string
-          maxLength: 32
-          minLength: 0
+          $ref: "#/components/schemas/Platform"
+          description: Plataforma do aparelho
       required:
       - fcmToken
       - platform
     DeviceResponseDTO:
       type: object
       properties:
-        installationId:
-          type: string
-        platform:
-          type: string
-          enum:
-          - ANDROID
         appVersion:
           type: string
+          description: Versão do app instalada no aparelho
+          example: 1.4.0
+        installationId:
+          type: string
+          description: Firebase Installation ID
+          example: fJ3kP9xQ-2mVb7Lw_Zt1Ry
+        platform:
+          $ref: "#/components/schemas/Platform"
+          description: Plataforma do aparelho
         updatedAt:
           type: string
           format: date-time
+          description: Última atualização do registro
+          example: 2026-10-24T13:45:00Z
+      required:
+      - installationId
+      - platform
+      - updatedAt
     InternalNotificationRequestDTO:
       type: object
       properties:
         authId:
           type: string
           format: uuid
-        type:
-          type: string
-          enum:
-          - NEW_MESSAGE
-          - SERVICE_SCHEDULED
-          - SERVICE_STATUS_CHANGED
-        title:
-          type: string
-          maxLength: 120
-          minLength: 0
+          description: Id da pessoa destinatária no api-auth
+          example: 8d6f2a4b-1c3e-4f5a-9b7c-2d4e6f8a0b1c
         body:
           type: string
+          description: Texto exibido no push
+          example: Você recebeu uma nova mensagem no chat.
           maxLength: 500
           minLength: 0
         data:
           type: object
           additionalProperties:
             type: string
+          description: Dados extras entregues ao app junto do push (até 20 chaves;
+            chaves reservadas do FCM e dos campos fixos são recusadas)
+          example:
+            chatId: "42"
+        title:
+          type: string
+          description: Título exibido no push
+          example: Nova mensagem
+          maxLength: 120
+          minLength: 0
+        type:
+          $ref: "#/components/schemas/NotificationType"
+          description: Tipo da notificação
       required:
       - authId
+      - body
+      - title
       - type
     NotificationDispatchResponseDTO:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        sent:
-          type: integer
-          format: int32
         failed:
           type: integer
           format: int32
-        removedDevices:
-          type: integer
-          format: int32
-    NotificationResponseDTO:
-      type: object
-      properties:
+          description: Aparelhos em que o envio falhou
+          example: 0
         id:
           type: string
           format: uuid
-        type:
-          type: string
-          enum:
-          - NEW_MESSAGE
-          - SERVICE_SCHEDULED
-          - SERVICE_STATUS_CHANGED
-        title:
-          type: string
+          description: Id da notificação gravada
+          example: 3f2b8c1e-5d4a-4e9b-9c7d-1a2b3c4d5e6f
+        removedDevices:
+          type: integer
+          format: int32
+          description: Aparelhos removidos por token rejeitado pelo provedor
+          example: 0
+        sent:
+          type: integer
+          format: int32
+          description: Aparelhos que receberam o push
+          example: 2
+      required:
+      - failed
+      - id
+      - removedDevices
+      - sent
+    NotificationResponseDTO:
+      type: object
+      properties:
         body:
           type: string
+          description: Texto exibido no push
+          example: Você recebeu uma nova mensagem no chat.
+        createdAt:
+          type: string
+          format: date-time
+          description: Momento em que a notificação foi gravada
+          example: 2026-10-24T13:45:00Z
         data:
           type: object
           additionalProperties:
             type: string
-        createdAt:
+          description: Dados extras enviados junto do push
+          example:
+            chatId: "42"
+        id:
           type: string
-          format: date-time
+          format: uuid
+          description: Id da notificação
+          example: 3f2b8c1e-5d4a-4e9b-9c7d-1a2b3c4d5e6f
         readAt:
           type: string
           format: date-time
+          description: Momento em que foi marcada como lida; nulo se ainda não lida
+          example: 2026-10-24T14:02:10Z
+        title:
+          type: string
+          description: Título exibido no push
+          example: Nova mensagem
+        type:
+          $ref: "#/components/schemas/NotificationType"
+          description: Tipo da notificação
+      required:
+      - body
+      - createdAt
+      - id
+      - title
+      - type
+    NotificationType:
+      type: string
+      description: Tipo da notificação
+      enum:
+      - NEW_MESSAGE
+      - SERVICE_SCHEDULED
+      - SERVICE_STATUS_CHANGED
     PageResponseDTONotificationResponseDTO:
       type: object
       properties:
         content:
           type: array
+          description: Itens da página
           items:
-            $ref: '#/components/schemas/NotificationResponseDTO'
+            $ref: "#/components/schemas/NotificationResponseDTO"
         page:
           type: integer
           format: int32
+          description: "Número da página, começando em 0"
+          example: 0
         size:
           type: integer
           format: int32
+          description: Tamanho da página
+          example: 20
         totalElements:
           type: integer
           format: int64
+          description: Total de itens
+          example: 1
+        totalPages:
+          type: integer
+          format: int32
+          description: Total de páginas
+          example: 1
+      required:
+      - content
+      - page
+      - size
+      - totalElements
+      - totalPages
+    Platform:
+      type: string
+      description: Plataforma do aparelho
+      enum:
+      - ANDROID
+    ProblemDetail:
+      description: "Corpo de todo erro HTTP, no contrato de erro da organização"
+      properties:
+        detail:
+          type: string
+          description: Explicação para quem depura; o front não exibe
+          example: Notificação não encontrada
+        errorCode:
+          type: string
+          description: "Código estável do catálogo de erros, usado pelo front para\
+            \ traduzir a mensagem"
+          example: NOT_FOUND
+        errors:
+          type: array
+          description: Erros por campo; presente só em VALIDATION_FAILED
+          items:
+            $ref: "#/components/schemas/ProblemFieldError"
+        instance:
+          type: string
+          description: Caminho da requisição
+          example: /notify/notifications/3f2b8c1e-5d4a-4e9b-9c7d-1a2b3c4d5e6f/read
+        status:
+          type: integer
+          format: int32
+          description: Código HTTP
+          example: 404
+        timestamp:
+          type: string
+          format: date-time
+          description: "Momento do erro, em UTC"
+          example: 2026-10-24T13:45:00Z
+        title:
+          type: string
+          description: O mesmo valor de errorCode
+          example: NOT_FOUND
+        traceId:
+          type: string
+          description: "Id do trace, para cruzar com os logs; presente quando há trace"
+          example: 4bf92f3577b34da6a3ce929d0e0e4736
+        type:
+          type: string
+          description: Sempre about:blank
+          example: about:blank
+      required:
+      - detail
+      - errorCode
+      - instance
+      - status
+      - timestamp
+      - title
+      - type
+    ProblemFieldError:
+      description: Erro de validação de um campo ou parâmetro
+      properties:
+        detail:
+          type: string
+          description: Explicação para quem depura
+          example: title é obrigatório
+        errorCode:
+          type: string
+          description: Código do erro do campo
+          example: VALIDATION_FAILED
+        field:
+          type: string
+          description: Campo ou parâmetro inválido
+          example: title
+      required:
+      - detail
+      - errorCode
+      - field
     UnreadCountResponseDTO:
       type: object
       properties:
         count:
           type: integer
           format: int64
+          description: Quantidade de notificações não lidas
+          example: 3
+      required:
+      - count
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
+    serviceKey:
+      in: header
+      name: X-Service-Key
+      type: apiKey
