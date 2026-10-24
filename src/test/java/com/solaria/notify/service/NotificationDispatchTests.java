@@ -29,6 +29,7 @@ import com.solaria.notify.model.Device;
 import com.solaria.notify.model.Notification;
 import com.solaria.notify.model.enums.NotificationType;
 import com.solaria.notify.model.enums.Platform;
+import com.solaria.notify.push.PushDeliveryException;
 import com.solaria.notify.push.PushMessage;
 import com.solaria.notify.push.PushResult;
 import com.solaria.notify.push.PushSender;
@@ -204,5 +205,18 @@ class NotificationDispatchTests {
         assertThat(result.getFailed()).isEqualTo(2);
         assertThat(result.getSent()).isZero();
         assertThat(result.getRemovedDevices()).isZero();
+    }
+
+    @Test
+    void pushDeliveryExceptionKeepsNotificationAndDevices() {
+        twoDevices();
+        when(pushSender.send(any(), any())).thenThrow(new PushDeliveryException("lote falhou"));
+
+        NotificationDispatchResponseDTO result = service.dispatch(request());
+
+        verify(repository).save(any(Notification.class));
+        assertThat(result.getFailed()).isEqualTo(2);
+        assertThat(result.getSent()).isZero();
+        verify(deviceService, never()).removeStale(any());
     }
 }
