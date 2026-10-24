@@ -85,7 +85,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(problemDetailAuthenticationEntryPoint)
                         .accessDeniedHandler(problemDetailAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .requestMatchers("/docs", "/swagger-ui/**", "/openapi.json/**", "/openapi.json.yaml")
                         .permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e

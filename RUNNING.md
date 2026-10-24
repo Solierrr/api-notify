@@ -35,11 +35,11 @@ Use sempre o wrapper (`mvnw`/`mvnw.cmd`) em vez de um Maven instalado globalment
 ./mvnw spring-boot:run
 ```
 
-A aplicação sobe por padrão na porta `8080`. `GET /actuator/health` confirma que o serviço está no ar e que o Mongo responde.
+A aplicação sobe por padrão na porta `8080`. `GET /actuator/health/liveness` confirma que o processo está no ar e `GET /actuator/health/readiness`, que o Mongo responde.
 
 ### Testando os endpoints
 
-O Swagger UI fica em `/swagger-ui.html`, sem autenticação. As rotas `/notify/**` exigem `Authorization: Bearer {token}` com o access token do `api-auth`; as rotas `/internal/**` exigem o header `X-Service-Key`. Exemplo de disparo interno:
+O Swagger UI fica em `/docs` e o contrato em `/openapi.json`, sem autenticação e sem a rota interna, que aparece só no `openapi.yaml` versionado. Depois de mudar rota, DTO ou anotação do contrato, rode `make openapi` e versione o `openapi.yaml`: o CI falha se ele não bater com o código. As rotas `/notify/**` exigem `Authorization: Bearer {token}` com o access token do `api-auth`; as rotas `/internal/**` exigem o header `X-Service-Key`. Exemplo de disparo interno:
 
 ```Disparo de uma notificação
 curl -X POST http://localhost:8080/internal/notifications \
