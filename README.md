@@ -84,6 +84,11 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 - **Limite de payload**: a soma dos bytes UTF-8 de todas as chaves e valores (fixos mais `data`) não pode passar de 3800 bytes, margem sob os 4096 do FCM. Acima disso a rota responde `400` antes de gravar. O limite não aparece no schema do `openapi.yaml`.
 - O token FCM, a credencial e as chaves de serviço nunca são logados.
 
+## Deploy
+
+- **QA**: o Render faz deploy automático a partir da branch `qa`.
+- **PROD**: a imagem `solarianetwork/api-notify` é publicada no push em `main` e o ArgoCD a implanta a partir do `infra-gitops`, no host `api-notify.solarianetwork.site`.
+
 ## Aprofunde-se no Projeto!
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md), decisões de desenho, modelagem no MongoDB e árvore do repositório.
