@@ -63,27 +63,28 @@ class NotificationControllerTests {
     void listReturnsPage() throws Exception {
         NotificationResponseDTO item = new NotificationResponseDTO(UUID.randomUUID(), NotificationType.NEW_MESSAGE,
                 "t", "b", Map.of("k", "v"), Instant.parse("2026-01-10T12:00:00Z"), null);
-        when(notificationService.list(0, 20, false)).thenReturn(new PageResponseDTO<>(List.of(item), 0, 20, 1));
+        when(notificationService.list(0, 20, false)).thenReturn(new PageResponseDTO<>(List.of(item), 0, 20, 1, 1));
 
         mockMvc.perform(get("/notify/notifications").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].type").value("NEW_MESSAGE"))
                 .andExpect(jsonPath("$.size").value(20))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test
-    void negativePageIs400() throws Exception {
+    void negativePageIs422() throws Exception {
         mockMvc.perform(get("/notify/notifications").param("page", "-1").with(jwt()))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).list(anyInt(), anyInt(), anyBoolean());
     }
 
     @Test
-    void zeroSizeIs400() throws Exception {
+    void zeroSizeIs422() throws Exception {
         mockMvc.perform(get("/notify/notifications").param("size", "0").with(jwt()))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).list(anyInt(), anyInt(), anyBoolean());
     }
@@ -109,11 +110,11 @@ class NotificationControllerTests {
     }
 
     @Test
-    void markReadWithInvalidUuidIs400() throws Exception {
+    void markReadWithInvalidUuidIs422() throws Exception {
         mockMvc.perform(patch("/notify/notifications/not-a-uuid/read").with(jwt()))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty())
                 .andExpect(jsonPath("$.instance").value("/notify/notifications/not-a-uuid/read"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("not-a-uuid\""))));

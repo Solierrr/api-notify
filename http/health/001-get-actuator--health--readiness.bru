@@ -1,0 +1,15 @@
+meta {
+  name: GET /actuator/health/readiness
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/actuator/health/readiness
+  body: none
+  auth: none
+}
+
+docs {
+  Checks whether the service is ready to serve requests (MongoDB reachable). Returns 503 when it is not.
+}
