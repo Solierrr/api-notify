@@ -73,17 +73,17 @@ class NotificationControllerTests {
     }
 
     @Test
-    void negativePageIs400() throws Exception {
+    void negativePageIs422() throws Exception {
         mockMvc.perform(get("/notify/notifications").param("page", "-1").with(jwt()))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).list(anyInt(), anyInt(), anyBoolean());
     }
 
     @Test
-    void zeroSizeIs400() throws Exception {
+    void zeroSizeIs422() throws Exception {
         mockMvc.perform(get("/notify/notifications").param("size", "0").with(jwt()))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).list(anyInt(), anyInt(), anyBoolean());
     }
@@ -109,11 +109,11 @@ class NotificationControllerTests {
     }
 
     @Test
-    void markReadWithInvalidUuidIs400() throws Exception {
+    void markReadWithInvalidUuidIs422() throws Exception {
         mockMvc.perform(patch("/notify/notifications/not-a-uuid/read").with(jwt()))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty())
                 .andExpect(jsonPath("$.instance").value("/notify/notifications/not-a-uuid/read"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("not-a-uuid\""))));
