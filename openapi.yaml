@@ -1,0 +1,361 @@
+openapi: 3.1.0
+info:
+  title: Solaria/api-notify
+  description: API Spring de notificações push do Solaria.
+  version: v1
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+tags:
+- name: Notificações
+  description: Histórico de notificações da pessoa autenticada
+- name: Aparelhos
+  description: Aparelhos da pessoa autenticada que recebem push
+- name: Interno
+  description: Disparo de notificações entre serviços (X-Service-Key)
+paths:
+  /notify/devices/{installationId}:
+    put:
+      tags:
+      - Aparelhos
+      summary: Registra ou atualiza um aparelho
+      description: Upsert pelo installationId (Firebase Installation ID). Se o aparelho
+        estava registrado para outra pessoa (troca de conta no mesmo celular), passa
+        a pertencer somente à pessoa autenticada.
+      operationId: register
+      parameters:
+      - name: installationId
+        in: path
+        description: Firebase Installation ID (letras, números, _ e -, até 64 caracteres)
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{1,64}$
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRegistrationRequestDTO'
+        required: true
+      responses:
+        '200':
+          description: Aparelho registrado
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DeviceResponseDTO'
+        '400':
+          description: installationId ou corpo inválido
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DeviceResponseDTO'
+        '401':
+          description: Não autenticado
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/DeviceResponseDTO'
+    delete:
+      tags:
+      - Aparelhos
+      summary: Remove um aparelho da pessoa autenticada
+      description: Aparelho inexistente ou de outra pessoa responde 404.
+      operationId: remove
+      parameters:
+      - name: installationId
+        in: path
+        description: Firebase Installation ID
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{1,64}$
+      responses:
+        '204':
+          description: Aparelho removido
+        '400':
+          description: installationId inválido
+        '401':
+          description: Não autenticado
+        '404':
+          description: Aparelho não encontrado
+  /internal/notifications:
+    post:
+      tags:
+      - Interno
+      summary: Grava e dispara uma notificação push
+      description: Sempre grava no histórico; se a pessoa não tiver aparelhos, responde
+        201 com sent=0. Aparelhos com token rejeitado pelo provedor são removidos.
+      operationId: dispatch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalNotificationRequestDTO'
+        required: true
+      responses:
+        '201':
+          description: Notificação gravada e disparada
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationDispatchResponseDTO'
+        '400':
+          description: Corpo inválido
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationDispatchResponseDTO'
+        '401':
+          description: Chave de serviço ausente ou inválida
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationDispatchResponseDTO'
+  /notify/notifications/{id}/read:
+    patch:
+      tags:
+      - Notificações
+      summary: Marca uma notificação como lida
+      description: 'Idempotente: se já estava lida, mantém o readAt original. Notificação
+        inexistente ou de outra pessoa responde 404.'
+      operationId: markRead
+      parameters:
+      - name: id
+        in: path
+        description: Id da notificação
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Notificação marcada como lida
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationResponseDTO'
+        '400':
+          description: id inválido
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationResponseDTO'
+        '401':
+          description: Não autenticado
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationResponseDTO'
+        '404':
+          description: Notificação não encontrada
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NotificationResponseDTO'
+  /notify/notifications/read-all:
+    patch:
+      tags:
+      - Notificações
+      summary: Marca todas as notificações da pessoa como lidas
+      operationId: markAllRead
+      responses:
+        '204':
+          description: Notificações marcadas como lidas
+        '401':
+          description: Não autenticado
+  /notify/notifications:
+    get:
+      tags:
+      - Notificações
+      summary: Lista o histórico de notificações
+      description: Mais recentes primeiro. size acima de 100 é limitado a 100.
+      operationId: list
+      parameters:
+      - name: page
+        in: query
+        description: Número da página, começando em 0
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+          minimum: 0
+      - name: size
+        in: query
+        description: Tamanho da página (máximo efetivo 100)
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          minimum: 1
+      - name: unreadOnly
+        in: query
+        description: Somente não lidas
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: Página de notificações
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseDTONotificationResponseDTO'
+        '400':
+          description: page menor que 0 ou size menor que 1
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseDTONotificationResponseDTO'
+        '401':
+          description: Não autenticado
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageResponseDTONotificationResponseDTO'
+  /notify/notifications/unread-count:
+    get:
+      tags:
+      - Notificações
+      summary: Conta as notificações não lidas
+      operationId: unreadCount
+      responses:
+        '200':
+          description: Quantidade de não lidas
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponseDTO'
+        '401':
+          description: Não autenticado
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponseDTO'
+components:
+  schemas:
+    DeviceRegistrationRequestDTO:
+      type: object
+      properties:
+        fcmToken:
+          type: string
+          maxLength: 4096
+          minLength: 1
+        platform:
+          type: string
+          enum:
+          - ANDROID
+        appVersion:
+          type: string
+          maxLength: 32
+          minLength: 0
+      required:
+      - fcmToken
+      - platform
+    DeviceResponseDTO:
+      type: object
+      properties:
+        installationId:
+          type: string
+        platform:
+          type: string
+          enum:
+          - ANDROID
+        appVersion:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    InternalNotificationRequestDTO:
+      type: object
+      properties:
+        authId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - NEW_MESSAGE
+          - SERVICE_SCHEDULED
+          - SERVICE_STATUS_CHANGED
+        title:
+          type: string
+          maxLength: 120
+          minLength: 0
+        body:
+          type: string
+          maxLength: 500
+          minLength: 0
+        data:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - authId
+      - type
+    NotificationDispatchResponseDTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sent:
+          type: integer
+          format: int32
+        failed:
+          type: integer
+          format: int32
+        removedDevices:
+          type: integer
+          format: int32
+    NotificationResponseDTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - NEW_MESSAGE
+          - SERVICE_SCHEDULED
+          - SERVICE_STATUS_CHANGED
+        title:
+          type: string
+        body:
+          type: string
+        data:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+    PageResponseDTONotificationResponseDTO:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponseDTO'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    UnreadCountResponseDTO:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64

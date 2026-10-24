@@ -1,0 +1,21 @@
+meta {
+  name: [mutates] DELETE /notify/devices/:installationId
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{baseUrl}}/notify/devices/{{installationId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{userToken}}
+}
+
+docs {
+  Remove um aparelho da pessoa autenticada
+  Aparelho inexistente ou de outra pessoa responde 404.
+  This operation changes server state.
+}
