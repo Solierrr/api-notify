@@ -14,6 +14,7 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.SendResponse;
+import com.google.firebase.messaging.WebpushConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -24,7 +25,7 @@ import com.solaria.notify.push.PushMessage;
 import com.solaria.notify.push.PushResult;
 import com.solaria.notify.push.PushSender;
 
-// Envia mensagens só de dados (sem Notification) com prioridade alta; nunca loga token
+// Envia mensagens só de dados (sem Notification) com prioridade alta no Android e urgência alta no Web Push; nunca loga token
 @Component
 @ConditionalOnProperty(name = "app.fcm.enabled", havingValue = "true")
 public class FcmPushSender implements PushSender {
@@ -65,6 +66,7 @@ public class FcmPushSender implements PushSender {
                     .addAllTokens(batch)
                     .putAllData(payload)
                     .setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
+                    .setWebpushConfig(WebpushConfig.builder().putHeader("Urgency", "high").build())
                     .build();
             BatchResponse response;
             try {
