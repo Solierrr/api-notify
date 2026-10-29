@@ -39,7 +39,7 @@ O envio push em si fica atrás da interface `PushSender`. Há duas implementaç�
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `PUT` | `/notify/devices/{installationId}` | Registra ou atualiza o aparelho (corpo `{fcmToken, platform, appVersion?}`). Se o FID era de outra pessoa, passa a ser de quem chamou. |
+| `PUT` | `/notify/devices/{installationId}` | Registra ou atualiza o aparelho (corpo `{fcmToken, platform, appVersion?}`, com `platform` `ANDROID` ou `WEB`; no navegador, `appVersion` leva o nome do navegador). Se o FID era de outra pessoa, passa a ser de quem chamou. |
 | `DELETE` | `/notify/devices/{installationId}` | Remove o aparelho (logout). Só o dono remove; qualquer outro caso responde `404`. |
 | `GET` | `/notify/notifications?page&size&unreadOnly` | Histórico paginado, mais recente primeiro. `size` acima de 100 é limitado a 100. |
 | `GET` | `/notify/notifications/unread-count` | Quantidade de notificações não lidas. |

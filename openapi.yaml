@@ -128,7 +128,9 @@ paths:
     put:
       description: "Upsert pelo installationId (Firebase Installation ID). Se o aparelho\
         \ estava registrado para outra pessoa (troca de conta no mesmo celular), passa\
-        \ a pertencer somente à pessoa autenticada."
+        \ a pertencer somente à pessoa autenticada. Navegadores se registram com platform\
+        \ WEB e o token FCM do Web Push; o installationId é o Firebase Installation\
+        \ ID do navegador."
       operationId: registerDevice
       parameters:
       - description: "Firebase Installation ID (letras, números, _ e -, até 64 caracteres)"
@@ -359,7 +361,8 @@ components:
       properties:
         appVersion:
           type: string
-          description: Versão do app instalada no aparelho
+          description: "Versão do app instalada no aparelho; em aparelhos WEB, o navegador\
+            \ (ex.: Chrome 130)"
           example: 1.4.0
           maxLength: 32
           minLength: 0
@@ -380,7 +383,8 @@ components:
       properties:
         appVersion:
           type: string
-          description: Versão do app instalada no aparelho
+          description: "Versão do app instalada no aparelho; em aparelhos WEB, o navegador\
+            \ (ex.: Chrome 130)"
           example: 1.4.0
         installationId:
           type: string
@@ -547,9 +551,11 @@ components:
       - totalPages
     Platform:
       type: string
-      description: Plataforma do aparelho
+      description: "Plataforma do aparelho: ANDROID (app mobile) ou WEB (navegador,\
+        \ token FCM do Web Push)"
       enum:
       - ANDROID
+      - WEB
     ProblemDetail:
       description: "Corpo de todo erro HTTP, no contrato de erro da organização"
       properties:
