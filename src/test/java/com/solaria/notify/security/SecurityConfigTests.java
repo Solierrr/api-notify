@@ -2,7 +2,9 @@ package com.solaria.notify.security;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
@@ -86,5 +88,33 @@ class SecurityConfigTests {
         mockMvc.perform(get("/internal/ping")
                 .with(jwt().jwt(j -> j.subject(UUID.randomUUID().toString()))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void corsPreflightFromAllowedOriginIsAcceptedForUserRoutes() throws Exception {
+        mockMvc.perform(options("/notify/ping")
+                .header("Origin", "http://localhost:3000")
+                .header("Access-Control-Request-Method", "PUT")
+                .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"));
+    }
+
+    @Test
+    void corsPreflightFromUnknownOriginIsRejected() throws Exception {
+        mockMvc.perform(options("/notify/ping")
+                .header("Origin", "https://outro-site.example")
+                .header("Access-Control-Request-Method", "PUT")
+                .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void browserCannotSendTheServiceKeyHeaderCrossOrigin() throws Exception {
+        mockMvc.perform(options("/internal/ping")
+                .header("Origin", "http://localhost:3000")
+                .header("Access-Control-Request-Method", "GET")
+                .header("Access-Control-Request-Headers", "x-service-key"))
+                .andExpect(status().isForbidden());
     }
 }

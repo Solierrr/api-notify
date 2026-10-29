@@ -135,6 +135,21 @@ class FcmPushSenderTests {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void sendsWebPushWithHighUrgency() throws Exception {
+        respond(ok());
+
+        sender.send(List.of("t1"), message(Map.of()));
+
+        ArgumentCaptor<MulticastMessage> captor = ArgumentCaptor.forClass(MulticastMessage.class);
+        verify(firebase).sendEachForMulticast(captor.capture(), eq(false));
+        Object webpush = field(captor.getValue(), "webpushConfig");
+        assertThat(webpush).isNotNull();
+        assertThat((Map<String, String>) field(webpush, "headers")).containsEntry("Urgency", "high");
+        assertThat(field(webpush, "notification")).isNull();
+    }
+
+    @Test
     void allSuccessReturnsSentCount() throws Exception {
         respond(ok(), ok(), ok());
 

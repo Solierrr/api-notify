@@ -39,7 +39,7 @@ O envio push em si fica atrás da interface `PushSender`. Há duas implementaç�
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `PUT` | `/notify/devices/{installationId}` | Registra ou atualiza o aparelho (corpo `{fcmToken, platform, appVersion?}`). Se o FID era de outra pessoa, passa a ser de quem chamou. |
+| `PUT` | `/notify/devices/{installationId}` | Registra ou atualiza o aparelho (corpo `{fcmToken, platform, appVersion?}`, com `platform` `ANDROID` ou `WEB`; no navegador, `appVersion` leva o nome do navegador). Se o FID era de outra pessoa, passa a ser de quem chamou. |
 | `DELETE` | `/notify/devices/{installationId}` | Remove o aparelho (logout). Só o dono remove; qualquer outro caso responde `404`. |
 | `GET` | `/notify/notifications?page&size&unreadOnly` | Histórico paginado, mais recente primeiro. `size` acima de 100 é limitado a 100. |
 | `GET` | `/notify/notifications/unread-count` | Quantidade de notificações não lidas. |
@@ -79,7 +79,7 @@ Veja [`.env.example`](./.env.example). Os valores reais vêm do Infisical em run
 
 ### Envio via FCM
 
-- **Mensagem só de dados**, sem o bloco `notification`, com prioridade Android `HIGH`. As chaves fixas são `notificationId`, `type`, `title` e `body`, seguidas das chaves de `data` da requisição.
+- **Mensagem só de dados**, sem o bloco `notification`, com prioridade Android `HIGH` e urgência `high` no Web Push (o service worker do navegador monta a notificação a partir de `data`). As chaves fixas são `notificationId`, `type`, `title` e `body`, seguidas das chaves de `data` da requisição.
 - **Lotes de 500 tokens** por chamada ao FCM. `sent`, `failed` e `removedDevices` somam todos os lotes.
 - **Token inválido remove o aparelho**: `UNREGISTERED`, `INVALID_ARGUMENT` e `SENDER_ID_MISMATCH`. Qualquer outro erro por token (como `UNAVAILABLE` ou `QUOTA_EXCEEDED`) conta como `failed` e mantém o aparelho.
 - **Falhas por token**: o SDK devolve erros de credencial (`UNAUTHENTICATED`, `PERMISSION_DENIED`) e de rede por token, não pela chamada. Esses tokens contam como `failed`, o aparelho fica e o envio loga um `WARN` com o resumo dos códigos (`codes={PERMISSION_DENIED=3, ...}`), nunca os tokens.

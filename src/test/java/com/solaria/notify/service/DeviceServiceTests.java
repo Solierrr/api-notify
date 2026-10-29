@@ -81,6 +81,24 @@ class DeviceServiceTests {
     }
 
     @Test
+    void registerStoresWebPlatformAndBrowserName() {
+        when(currentUser.authId()).thenReturn(userA);
+        when(repository.findById("fid-web")).thenReturn(Optional.empty());
+        when(repository.save(any(Device.class))).thenAnswer(i -> i.getArgument(0));
+        DeviceRegistrationRequestDTO web = dto("web-token");
+        web.setPlatform(Platform.WEB);
+        web.setAppVersion("Chrome 130");
+
+        DeviceResponseDTO response = service.register("fid-web", web);
+
+        ArgumentCaptor<Device> captor = ArgumentCaptor.forClass(Device.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getPlatform()).isEqualTo(Platform.WEB);
+        assertThat(captor.getValue().getAppVersion()).isEqualTo("Chrome 130");
+        assertThat(response.getPlatform()).isEqualTo(Platform.WEB);
+    }
+
+    @Test
     void registerUpdatesTokenKeepingCreatedAt() {
         when(currentUser.authId()).thenReturn(userA);
         when(repository.findById("fid-1")).thenReturn(Optional.of(device(userA)));

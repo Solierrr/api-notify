@@ -23,7 +23,8 @@ public class DeviceRegistrationRequestDTO {
     @NotNull(message = "platform é obrigatório")
     private Platform platform;
 
-    @Schema(description = "Versão do app instalada no aparelho", example = "1.4.0")
+    @Schema(description = "Versão do app instalada no aparelho; em aparelhos WEB, o navegador (ex.: Chrome 130)",
+            example = "1.4.0")
     @Size(max = 32, message = "appVersion deve ter no máximo 32 caracteres")
     private String appVersion;
 }
