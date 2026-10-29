@@ -68,6 +68,26 @@ class DeviceControllerTests {
     }
 
     @Test
+    void putAcceptsWebPlatform() throws Exception {
+        when(deviceService.register(eq("fid-web"), any()))
+                .thenReturn(new DeviceResponseDTO("fid-web", Platform.WEB, "Chrome 130", Instant.parse("2026-01-10T12:00:00Z")));
+
+        mockMvc.perform(put("/notify/devices/fid-web").with(jwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fcmToken\":\"tok\",\"platform\":\"WEB\",\"appVersion\":\"Chrome 130\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.platform").value("WEB"))
+                .andExpect(jsonPath("$.appVersion").value("Chrome 130"));
+    }
+
+    @Test
+    void putWithUnknownPlatformIs422() throws Exception {
+        mockMvc.perform(put("/notify/devices/fid-1").with(jwt()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fcmToken\":\"tok\",\"platform\":\"DESKTOP\"}"))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    }
+
+    @Test
     void putWithBlankTokenIs422() throws Exception {
         mockMvc.perform(put("/notify/devices/fid-1").with(jwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"fcmToken\":\" \",\"platform\":\"ANDROID\"}"))

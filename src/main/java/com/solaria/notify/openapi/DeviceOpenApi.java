@@ -23,7 +23,8 @@ public interface DeviceOpenApi {
         summary = "Registra ou atualiza um aparelho",
         description = "Upsert pelo installationId (Firebase Installation ID). Se o aparelho estava "
                 + "registrado para outra pessoa (troca de conta no mesmo celular), passa a pertencer "
-                + "somente à pessoa autenticada.",
+                + "somente à pessoa autenticada. Navegadores se registram com platform WEB e o token FCM "
+                + "do Web Push; o installationId é o Firebase Installation ID do navegador.",
         extensions = @Extension(properties = @ExtensionProperty(name = "x-error-codes", parseValue = true,
                 value = "[\"VALIDATION_FAILED\", \"MALFORMED_REQUEST\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
     )

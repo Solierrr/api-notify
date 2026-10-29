@@ -173,6 +173,38 @@ class NotificationFlowTests {
     }
 
     @Test
+    void webDeviceIsRegisteredAndReceivesDispatchAlongsideAndroid() throws Exception {
+        UUID user = UUID.randomUUID();
+
+        mockMvc.perform(put("/notify/devices/" + FID).with(user(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fcmToken\":\"token-android\",\"platform\":\"ANDROID\",\"appVersion\":\"1.0.0\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/notify/devices/fid-web-teste").with(user(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fcmToken\":\"token-web\",\"platform\":\"WEB\",\"appVersion\":\"Chrome 130\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.platform").value("WEB"))
+                .andExpect(jsonPath("$.appVersion").value("Chrome 130"));
+
+        Device web = mongoTemplate.findById("fid-web-teste", Device.class);
+        assertThat(web).isNotNull();
+        assertThat(web.getPlatform()).isEqualTo(Platform.WEB);
+        assertThat(web.getAuthId()).isEqualTo(user);
+
+        mockMvc.perform(post("/internal/notifications")
+                .header("X-Service-Key", SERVICE_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(dispatchBody(user, "Nova mensagem")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sent").value(2));
+
+        mockMvc.perform(delete("/notify/devices/fid-web-teste").with(user(user)))
+                .andExpect(status().isNoContent());
+        assertThat(mongoTemplate.findById("fid-web-teste", Device.class)).isNull();
+    }
+
+    @Test
     void removeStaleOnlyDeletesWhenTokenStillMatches() {
         UUID owner = UUID.randomUUID();
         Instant now = Instant.parse("2026-01-10T12:00:00Z");

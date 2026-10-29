@@ -16,7 +16,7 @@ public class DeviceResponseDTO {
     private String installationId;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Plataforma do aparelho")
     private Platform platform;
-    @Schema(description = "Versão do app instalada no aparelho", example = "1.4.0")
+    @Schema(description = "Versão do app instalada no aparelho; em aparelhos WEB, o navegador (ex.: Chrome 130)", example = "1.4.0")
     private String appVersion;
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Última atualização do registro", example = "2026-10-24T13:45:00Z")
     private Instant updatedAt;
