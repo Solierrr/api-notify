@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Centraliza o tratamento de exceções da API e devolve todo erro como {@link ProblemDetail}
+ * Centraliza o tratamento de exceções da API e devolve qualquer erro como {@link ProblemDetail}
  *
  * <p>
  * Cobre regras de negócio ({@code BusinessException}), banco de dados, JSON malformado,
