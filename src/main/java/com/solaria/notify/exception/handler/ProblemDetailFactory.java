@@ -13,12 +13,20 @@ import io.opentelemetry.api.trace.SpanContext;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Classe responsável por montar corpos de Jsons de erro.
+ * Monta o corpo JSON de todo erro da API no formato {@link ProblemDetail} (RFC 9457)
+ *
+ * <p>
+ * {@code errorCode} identifica o erro, {@code timestamp} marca o instante da falha e {@code traceId}
+ * leva direto ao trace no Grafana -> o cliente decide pelo {@code errorCode}, não pelo {@code detail}
+ * </p>
+ *
+ * <p>
+ * Sem {@code type} (omitido) e sem {@code title} próprio -> o Spring preenche {@code title} com a
+ * reason phrase do status ("Not Found")
+ * </p>
  */
 @Component
 public class ProblemDetailFactory {
-
-    private static final URI ABOUT_BLANK = URI.create("about:blank");
 
     // cria corpo do json a partir da classe ProblemDetail
     public ProblemDetail create(HttpStatusCode status,
@@ -27,8 +35,6 @@ public class ProblemDetailFactory {
                                 Map<String, Object> properties,
                                 HttpServletRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
-        problem.setTitle(errorCode);
-        problem.setType(ABOUT_BLANK);
         if (request != null) {
             problem.setInstance(URI.create(request.getRequestURI()));
         }

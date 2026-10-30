@@ -25,12 +25,12 @@ public interface NotificationOpenApi {
         summary = "Lista o histórico de notificações",
         description = "Mais recentes primeiro. size acima de 100 é limitado a 100.",
         extensions = @Extension(properties = @ExtensionProperty(name = "x-error-codes", parseValue = true,
-                value = "[\"VALIDATION_FAILED\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
+                value = "[\"VALIDATION_ERROR\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Página de notificações"),
             @ApiResponse(responseCode = "401", description = "Não autenticado"),
-            @ApiResponse(responseCode = "422", description = "page menor que 0, size menor que 1 ou parâmetro com formato inválido")
+            @ApiResponse(responseCode = "400", description = "page menor que 0, size menor que 1 ou parâmetro com formato inválido")
     })
     ResponseEntity<PageResponseDTO<NotificationResponseDTO>> list(
             @Parameter(description = "Número da página, começando em 0", example = "0")
@@ -58,13 +58,13 @@ public interface NotificationOpenApi {
         description = "Idempotente: se já estava lida, mantém o readAt original. "
                 + "Notificação inexistente ou de outra pessoa responde 404.",
         extensions = @Extension(properties = @ExtensionProperty(name = "x-error-codes", parseValue = true,
-                value = "[\"VALIDATION_FAILED\", \"UNAUTHENTICATED\", \"NOT_FOUND\", \"INTERNAL_ERROR\"]"))
+                value = "[\"VALIDATION_ERROR\", \"UNAUTHENTICATED\", \"RESOURCE_NOT_FOUND\", \"INTERNAL_ERROR\"]"))
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Notificação marcada como lida"),
             @ApiResponse(responseCode = "401", description = "Não autenticado"),
             @ApiResponse(responseCode = "404", description = "Notificação não encontrada"),
-            @ApiResponse(responseCode = "422", description = "id com formato inválido")
+            @ApiResponse(responseCode = "400", description = "id com formato inválido")
     })
     ResponseEntity<NotificationResponseDTO> markRead(
             @Parameter(description = "Id da notificação", example = "3f2b8c1e-5d4a-4e9b-9c7d-1a2b3c4d5e6f") UUID id);

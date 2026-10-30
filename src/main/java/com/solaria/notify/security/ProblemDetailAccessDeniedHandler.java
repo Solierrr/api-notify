@@ -18,11 +18,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Classe responsável por montar corpos de Jsons de erro, especificos para RBAC.
+ * Devolve o 403 de RBAC no formato {@link ProblemDetail} ({@code ACCESS_DENIED})
  *
- * <p>O 403 é produzido na cadeia de filtros ]
- *  marca a observação do servidor como erro e loga correlacionado ao trace
+ * <p>
+ * Roda na chain do Spring Security, antes do Spring MVC -> o {@code GlobalExceptionHandler} não alcança
+ * este erro, por isso a resposta é escrita direto no {@link HttpServletResponse}
  * </p>
+ *
+ * <p>Marca o span como erro e loga {@code WARN}, igual aos demais 4xx</p>
  */
 @Component
 public class ProblemDetailAccessDeniedHandler implements AccessDeniedHandler {
@@ -51,7 +54,7 @@ public class ProblemDetailAccessDeniedHandler implements AccessDeniedHandler {
         ProblemDetail problem = problemDetailFactory.create(
                 HttpStatus.FORBIDDEN,
                 "Acesso negado: você não tem permissão para acessar este recurso.",
-                "FORBIDDEN",
+                "ACCESS_DENIED",
                 null,
                 request);
         // Escreve status/headers/corpo diretamente na resposta pois esse handler fica na camada de filtro, antes de spring MVC
