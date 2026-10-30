@@ -80,27 +80,28 @@ class DeviceControllerTests {
     }
 
     @Test
-    void putWithUnknownPlatformIs422() throws Exception {
+    void putWithUnknownPlatformIs400() throws Exception {
         mockMvc.perform(put("/notify/devices/fid-1").with(jwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"fcmToken\":\"tok\",\"platform\":\"DESKTOP\"}"))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
     @Test
-    void putWithBlankTokenIs422() throws Exception {
+    void putWithBlankTokenIs400() throws Exception {
         mockMvc.perform(put("/notify/devices/fid-1").with(jwt()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"fcmToken\":\" \",\"platform\":\"ANDROID\"}"))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.type").value("about:blank"))
-                .andExpect(jsonPath("$.title").value("VALIDATION_FAILED"))
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.type").doesNotExist())
+                .andExpect(jsonPath("$.title").value("Bad Request"))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.instance").value("/notify/devices/fid-1"))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.errors[0].field").value("fcmToken"))
-                .andExpect(jsonPath("$.errors[0].errorCode").value("VALIDATION_FAILED"))
-                .andExpect(jsonPath("$.errors[0].detail").exists());
+                .andExpect(jsonPath("$.errors[0].message").exists())
+                .andExpect(jsonPath("$.errors[0].errorCode").doesNotExist())
+                .andExpect(jsonPath("$.errors[0].detail").doesNotExist());
     }
 
     @Test
@@ -113,12 +114,12 @@ class DeviceControllerTests {
     }
 
     @Test
-    void putWithInvalidInstallationIdIs422() throws Exception {
+    void putWithInvalidInstallationIdIs400() throws Exception {
         mockMvc.perform(put("/notify/devices/" + "a".repeat(65)).with(jwt()).contentType(MediaType.APPLICATION_JSON).content(BODY))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         mockMvc.perform(put("/notify/devices/a.b").with(jwt()).contentType(MediaType.APPLICATION_JSON).content(BODY))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(deviceService, never()).register(any(), any());
     }

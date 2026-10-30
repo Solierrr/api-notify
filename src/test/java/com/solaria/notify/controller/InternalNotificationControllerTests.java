@@ -80,19 +80,19 @@ class InternalNotificationControllerTests {
     }
 
     @Test
-    void dispatchWithUnknownTypeIs422() throws Exception {
+    void dispatchWithUnknownTypeIs400() throws Exception {
         mockMvc.perform(post(URL).header("X-Service-Key", "unit-test-service-key-0123456789abcdef").contentType(MediaType.APPLICATION_JSON)
                 .content(body("FOO", "Oi")))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).dispatch(any());
     }
 
     @Test
-    void dispatchWithBlankTitleIs422() throws Exception {
+    void dispatchWithBlankTitleIs400() throws Exception {
         mockMvc.perform(post(URL).header("X-Service-Key", "unit-test-service-key-0123456789abcdef").contentType(MediaType.APPLICATION_JSON)
                 .content(body("NEW_MESSAGE", " ")))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
         verify(notificationService, never()).dispatch(any());
     }
@@ -105,14 +105,14 @@ class InternalNotificationControllerTests {
     private void expectDataRejected(String dataJson) throws Exception {
         mockMvc.perform(post(URL).header("X-Service-Key", KEY).contentType(MediaType.APPLICATION_JSON)
                 .content(bodyWithData(dataJson)))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         verify(notificationService, never()).dispatch(any());
     }
 
     @Test
-    void reservedDataKeyIs422() throws Exception {
+    void reservedDataKeyIs400() throws Exception {
         expectDataRejected("{\"from\":\"x\"}");
         expectDataRejected("{\"title\":\"x\"}");
         expectDataRejected("{\"notificationId\":\"x\"}");
@@ -120,31 +120,31 @@ class InternalNotificationControllerTests {
     }
 
     @Test
-    void googleAndGcmPrefixedDataKeyIs422() throws Exception {
+    void googleAndGcmPrefixedDataKeyIs400() throws Exception {
         expectDataRejected("{\"google_x\":\"x\"}");
         expectDataRejected("{\"Google_x\":\"x\"}");
         expectDataRejected("{\"gcm_x\":\"x\"}");
     }
 
     @Test
-    void malformedDataKeyIs422() throws Exception {
+    void malformedDataKeyIs400() throws Exception {
         expectDataRejected("{\"google.x\":\"x\"}");
         expectDataRejected("{\"1abc\":\"x\"}");
         expectDataRejected("{\"" + "a".repeat(65) + "\":\"x\"}");
     }
 
     @Test
-    void tooLongDataValueIs422() throws Exception {
+    void tooLongDataValueIs400() throws Exception {
         expectDataRejected("{\"chatId\":\"" + "v".repeat(513) + "\"}");
     }
 
     @Test
-    void nullDataValueIs422() throws Exception {
+    void nullDataValueIs400() throws Exception {
         expectDataRejected("{\"chatId\":null}");
     }
 
     @Test
-    void oversizedPayloadIs422AndNothingIsStored() throws Exception {
+    void oversizedPayloadIs400AndNothingIsStored() throws Exception {
         StringBuilder data = new StringBuilder("{");
         for (int i = 0; i < 20; i++) {
             data.append(i > 0 ? "," : "").append("\"k").append(i).append("\":\"").append("v".repeat(512)).append("\"");
@@ -152,11 +152,11 @@ class InternalNotificationControllerTests {
         data.append("}");
         mockMvc.perform(post(URL).header("X-Service-Key", KEY).contentType(MediaType.APPLICATION_JSON)
                 .content(bodyWithData(data.toString())))
-                .andExpect(status().isUnprocessableContent())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.errors[0].field").value("payload"))
-                .andExpect(jsonPath("$.errors[0].detail").value("payload excede o limite de envio do FCM"));
+                .andExpect(jsonPath("$.errors[0].message").value("payload excede o limite de envio do FCM"));
         verify(notificationService, never()).dispatch(any());
     }
 
