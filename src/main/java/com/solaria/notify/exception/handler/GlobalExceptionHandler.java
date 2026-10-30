@@ -54,7 +54,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    private static final String VALIDATION_ERROR = "VALIDATION_ERROR";
+    private static final String VALIDATION_FAILED = "VALIDATION_FAILED";
 
     private final ProblemDetailFactory factory;
 
@@ -132,8 +132,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         recordError(ex, HttpStatus.FORBIDDEN, request);
 
         ProblemDetail body = factory.create(HttpStatus.FORBIDDEN,
-                "Acesso negado: você não tem permissão para acessar este recurso.",
-                "ACCESS_DENIED",
+                "Você não tem permissão para executar esta ação.",
+                "FORBIDDEN",
                 null,
                 request);
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
@@ -161,21 +161,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                   HttpHeaders headers,
                                                                   HttpStatusCode status,
                                                                   WebRequest request) {
-        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+        recordError(ex, HttpStatus.UNPROCESSABLE_CONTENT, servletRequest(request));
 
-        // erros de classe (ex.: @FcmPayloadSize) não têm campo; reporta "payload" em vez do nome do bean
         List<Map<String, Object>> errors = ex.getBindingResult()
                 .getAllErrors()
                 .stream()
-                .map(oe -> fieldError(oe instanceof FieldError fe ? fe.getField() : "payload",
-                        oe.getDefaultMessage()))
+                .map(oe -> {
+                    // erros de classe (ex.: @FcmPayloadSize) não têm campo; reporta "payload" em vez do nome do bean
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("field", oe instanceof FieldError fe ? fe.getField() : "payload");
+                    entry.put("errorCode", VALIDATION_FAILED);
+                    entry.put("detail", oe.getDefaultMessage());
+                    return entry;
+                })
                 .toList();
-        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
+        ProblemDetail body = factory.create(HttpStatus.UNPROCESSABLE_CONTENT,
                 "Erro de validação nos campos da requisição.",
-                VALIDATION_ERROR,
+                VALIDATION_FAILED,
                 Map.of("errors", errors),
                 servletRequest(request));
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     // Sobrescrita de handler responsável por BEAN validation / parâmetros dos métodos.
@@ -185,7 +190,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                             HttpHeaders headers,
                                                                             HttpStatusCode status,
                                                                             WebRequest request) {
-        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+        recordError(ex, HttpStatus.UNPROCESSABLE_CONTENT, servletRequest(request));
 
         List<Map<String, Object>> errors = ex.getParameterValidationResults()
                 .stream()
@@ -198,11 +203,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                 .map(err -> fieldError(result.getMethodParameter().getParameterName(),
                                         err.getDefaultMessage())))
                 .toList();
-        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
-                "Erro de validação nos campos da requisição.",
-                VALIDATION_ERROR,
+        ProblemDetail body = factory.create(HttpStatus.UNPROCESSABLE_CONTENT,
+                "Erro de validação nos parâmetros da requisição.",
+                VALIDATION_FAILED,
                 Map.of("errors", errors), servletRequest(request));
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     // Sobrescrita de Handler responsável por JSONS inválidos.
@@ -212,14 +217,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                   HttpHeaders headers,
                                                                   HttpStatusCode status,
                                                                   WebRequest request) {
-        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+        recordError(ex, HttpStatus.UNPROCESSABLE_CONTENT, servletRequest(request));
 
-        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
+        ProblemDetail body = factory.create(HttpStatus.UNPROCESSABLE_CONTENT,
                 "Corpo da requisição malformado ou ilegível.",
                 "MALFORMED_REQUEST",
                 null,
                 servletRequest(request));
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     // Parâmetro de rota/query com tipo inválido (ex.: UUID malformado); não ecoa o valor recebido
@@ -229,14 +234,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                         HttpHeaders headers,
                                                         HttpStatusCode status,
                                                         WebRequest request) {
-        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+        recordError(ex, HttpStatus.UNPROCESSABLE_CONTENT, servletRequest(request));
 
-        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
-                "Erro de validação nos campos da requisição.",
-                VALIDATION_ERROR,
+        ProblemDetail body = factory.create(HttpStatus.UNPROCESSABLE_CONTENT,
+                "Parâmetro da requisição com formato inválido.",
+                VALIDATION_FAILED,
                 Map.of("errors", List.of(fieldError(ex.getPropertyName(), "formato inválido"))),
                 servletRequest(request));
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     // Parâmetro obrigatório de query ausente
@@ -246,14 +251,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                                           HttpHeaders headers,
                                                                           HttpStatusCode status,
                                                                           WebRequest request) {
-        recordError(ex, HttpStatus.BAD_REQUEST, servletRequest(request));
+        recordError(ex, HttpStatus.UNPROCESSABLE_CONTENT, servletRequest(request));
 
-        ProblemDetail body = factory.create(HttpStatus.BAD_REQUEST,
-                "Erro de validação nos campos da requisição.",
-                VALIDATION_ERROR,
+        ProblemDetail body = factory.create(HttpStatus.UNPROCESSABLE_CONTENT,
+                "Parâmetro obrigatório da requisição ausente.",
+                VALIDATION_FAILED,
                 Map.of("errors", List.of(fieldError(ex.getParameterName(), "obrigatório"))),
                 servletRequest(request));
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
     // Demais erros do Spring MVC (rota inexistente, método não suportado) no mesmo formato, com o código genérico do status
@@ -278,9 +283,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static String genericErrorCode(HttpStatusCode status) {
         return switch (status.value()) {
             case 401 -> "UNAUTHENTICATED";
-            case 403 -> "ACCESS_DENIED";
-            case 404 -> "RESOURCE_NOT_FOUND";
+            case 403 -> "FORBIDDEN";
+            case 404 -> "NOT_FOUND";
             case 409 -> "CONFLICT";
+            case 422 -> VALIDATION_FAILED;
             case 429 -> "RATE_LIMITED";
             case 502, 503 -> "DEPENDENCY_UNAVAILABLE";
             default -> {
@@ -290,11 +296,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         };
     }
 
-    // formato do item de errors[] do contrato: {field, message}
-    private static Map<String, Object> fieldError(String field, String message) {
+    private static Map<String, Object> fieldError(String field, String detail) {
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("field", field);
-        entry.put("message", message);
+        entry.put("errorCode", VALIDATION_FAILED);
+        entry.put("detail", detail);
         return entry;
     }
 

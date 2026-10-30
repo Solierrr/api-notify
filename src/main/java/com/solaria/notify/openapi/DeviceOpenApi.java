@@ -26,12 +26,12 @@ public interface DeviceOpenApi {
                 + "somente à pessoa autenticada. Navegadores se registram com platform WEB e o token FCM "
                 + "do Web Push; o installationId é o Firebase Installation ID do navegador.",
         extensions = @Extension(properties = @ExtensionProperty(name = "x-error-codes", parseValue = true,
-                value = "[\"VALIDATION_ERROR\", \"MALFORMED_REQUEST\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
+                value = "[\"VALIDATION_FAILED\", \"MALFORMED_REQUEST\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Aparelho registrado"),
             @ApiResponse(responseCode = "401", description = "Não autenticado"),
-            @ApiResponse(responseCode = "400", description = "installationId ou corpo inválido")
+            @ApiResponse(responseCode = "422", description = "installationId ou corpo inválido")
     })
     ResponseEntity<DeviceResponseDTO> register(
             @Parameter(description = "Firebase Installation ID (letras, números, _ e -, até 64 caracteres)",
@@ -44,13 +44,13 @@ public interface DeviceOpenApi {
         summary = "Remove um aparelho da pessoa autenticada",
         description = "Aparelho inexistente ou de outra pessoa responde 404.",
         extensions = @Extension(properties = @ExtensionProperty(name = "x-error-codes", parseValue = true,
-                value = "[\"VALIDATION_ERROR\", \"UNAUTHENTICATED\", \"RESOURCE_NOT_FOUND\", \"INTERNAL_ERROR\"]"))
+                value = "[\"VALIDATION_FAILED\", \"UNAUTHENTICATED\", \"NOT_FOUND\", \"INTERNAL_ERROR\"]"))
     )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Aparelho removido"),
             @ApiResponse(responseCode = "401", description = "Não autenticado"),
             @ApiResponse(responseCode = "404", description = "Aparelho não encontrado"),
-            @ApiResponse(responseCode = "400", description = "installationId inválido")
+            @ApiResponse(responseCode = "422", description = "installationId inválido")
     })
     ResponseEntity<Void> remove(
             @Parameter(description = "Firebase Installation ID", example = "fJ3kP9xQ-2mVb7Lw_Zt1Ry")

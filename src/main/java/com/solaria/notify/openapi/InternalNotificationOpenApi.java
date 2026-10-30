@@ -26,12 +26,12 @@ public interface InternalNotificationOpenApi {
                 + "title, body, type e data não pode passar de 3800 bytes (limite do FCM com margem). "
                 + "Chamada pelos serviços com a chave de serviço própria; nunca exposta pelo gateway.",
         extensions = @Extension(properties = @ExtensionProperty(name = "x-error-codes", parseValue = true,
-                value = "[\"VALIDATION_ERROR\", \"MALFORMED_REQUEST\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
+                value = "[\"VALIDATION_FAILED\", \"MALFORMED_REQUEST\", \"UNAUTHENTICATED\", \"INTERNAL_ERROR\"]"))
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Notificação gravada e disparada"),
             @ApiResponse(responseCode = "401", description = "Chave de serviço ausente ou inválida"),
-            @ApiResponse(responseCode = "400", description = "Corpo inválido")
+            @ApiResponse(responseCode = "422", description = "Corpo inválido")
     })
     ResponseEntity<NotificationDispatchResponseDTO> dispatch(@Valid InternalNotificationRequestDTO request);
 }
