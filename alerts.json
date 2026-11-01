@@ -1,0 +1,9 @@
+{
+  "service": "api-notify",
+  "aliases": [
+    "notify",
+    "api-notify"
+  ],
+  "project": "DEV",
+  "host": "https://notify.solarianetwork.site"
+}
