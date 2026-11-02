@@ -4,6 +4,14 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 
+/**
+ * Recurso não encontrado -> {@code 404 NOT_FOUND}
+ *
+ * <p>
+ * Lançada pelos services quando o registro pedido não existe -> o cliente decide pelo
+ * {@code errorCode}, então o código fica estável mesmo que a mensagem mude
+ * </p>
+ */
 public class ResourceNotFoundException extends BusinessException {
 
     public ResourceNotFoundException(String message) {
